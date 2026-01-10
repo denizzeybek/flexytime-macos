@@ -104,7 +104,7 @@ if [ "$SIGN_APP" = true ]; then
 
     # Sign the main app
     codesign --force --options runtime --sign "${DEVELOPER_ID}" \
-        --entitlements "${PROJECT_DIR}/FlexyMacV2/Resources/FlexyMacV2.entitlements" \
+        --entitlements "${PROJECT_DIR}/FlexytimeMacOS/Resources/FlexytimeMacOS.entitlements" \
         "${APP_PATH}"
 
     # Verify signature

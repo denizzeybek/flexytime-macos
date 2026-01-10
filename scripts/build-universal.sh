@@ -14,8 +14,8 @@ NC='\033[0m' # No Color
 
 # Project settings
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-PROJECT_NAME="FlexyMacV2"
-SCHEME_NAME="FlexyMacV2"
+PROJECT_NAME="FlexytimeMacOS"
+SCHEME_NAME="FlexytimeMacOS"
 APP_NAME="Flexytime"
 BUILD_DIR="${PROJECT_DIR}/build"
 ARCHIVE_PATH="${BUILD_DIR}/${APP_NAME}.xcarchive"

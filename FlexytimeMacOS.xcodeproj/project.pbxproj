@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		A1000001239F0001 /* FlexyMacV2App.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000002239F0001 /* FlexyMacV2App.swift */; };
+		A1000001239F0001 /* FlexytimeMacOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000002239F0001 /* FlexytimeMacOSApp.swift */; };
 		A1000003239F0001 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000004239F0001 /* AppDelegate.swift */; };
 		A1000005239F0001 /* MenuBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000006239F0001 /* MenuBarView.swift */; };
 		A1000007239F0001 /* WindowTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000008239F0001 /* WindowTracker.swift */; };
@@ -29,8 +29,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		A1000000239F0001 /* FlexyMacV2.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FlexyMacV2.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		A1000002239F0001 /* FlexyMacV2App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlexyMacV2App.swift; sourceTree = "<group>"; };
+		A1000000239F0001 /* FlexytimeMacOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FlexytimeMacOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A1000002239F0001 /* FlexytimeMacOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlexytimeMacOSApp.swift; sourceTree = "<group>"; };
 		A1000004239F0001 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		A1000006239F0001 /* MenuBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarView.swift; sourceTree = "<group>"; };
 		A1000008239F0001 /* WindowTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowTracker.swift; sourceTree = "<group>"; };
@@ -43,8 +43,8 @@
 		A1000016239F0001 /* Date+Extension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Date+Extension.swift"; sourceTree = "<group>"; };
 		A1000018239F0001 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A100001A239F0001 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		A100001B239F0001 /* FlexyMacV2.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = FlexyMacV2.entitlements; sourceTree = "<group>"; };
-		A100001C239F0001 /* FlexyMacV2-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "FlexyMacV2-Bridging-Header.h"; sourceTree = "<group>"; };
+		A100001B239F0001 /* FlexytimeMacOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = FlexytimeMacOS.entitlements; sourceTree = "<group>"; };
+		A100001C239F0001 /* FlexytimeMacOS-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "FlexytimeMacOS-Bridging-Header.h"; sourceTree = "<group>"; };
 		A1000021239F0001 /* minizip-bridge.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = "minizip-bridge.c"; sourceTree = "<group>"; };
 		A1000022239F0001 /* minizip-bridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "minizip-bridge.h"; sourceTree = "<group>"; };
 		A1000024239F0001 /* ZipEncryption.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZipEncryption.swift; sourceTree = "<group>"; };
@@ -70,16 +70,16 @@
 		A10000E0239F0001 = {
 			isa = PBXGroup;
 			children = (
-				A10000E1239F0001 /* FlexyMacV2 */,
+				A10000E1239F0001 /* FlexytimeMacOS */,
 				A10000E2239F0001 /* Products */,
 				A10000E9239F0001 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
-		A10000E1239F0001 /* FlexyMacV2 */ = {
+		A10000E1239F0001 /* FlexytimeMacOS */ = {
 			isa = PBXGroup;
 			children = (
-				A100001C239F0001 /* FlexyMacV2-Bridging-Header.h */,
+				A100001C239F0001 /* FlexytimeMacOS-Bridging-Header.h */,
 				A10000E3239F0001 /* App */,
 				A10000E4239F0001 /* Services */,
 				A10000E5239F0001 /* Models */,
@@ -89,13 +89,13 @@
 				A10000E7239F0001 /* Utilities */,
 				A10000E8239F0001 /* Resources */,
 			);
-			path = FlexyMacV2;
+			path = FlexytimeMacOS;
 			sourceTree = "<group>";
 		};
 		A10000E2239F0001 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				A1000000239F0001 /* FlexyMacV2.app */,
+				A1000000239F0001 /* FlexytimeMacOS.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -103,7 +103,7 @@
 		A10000E3239F0001 /* App */ = {
 			isa = PBXGroup;
 			children = (
-				A1000002239F0001 /* FlexyMacV2App.swift */,
+				A1000002239F0001 /* FlexytimeMacOSApp.swift */,
 				A1000004239F0001 /* AppDelegate.swift */,
 				A1000006239F0001 /* MenuBarView.swift */,
 				A1000047239F0001 /* SetupView.swift */,
@@ -162,7 +162,7 @@
 			children = (
 				A1000018239F0001 /* Assets.xcassets */,
 				A100001A239F0001 /* Info.plist */,
-				A100001B239F0001 /* FlexyMacV2.entitlements */,
+				A100001B239F0001 /* FlexytimeMacOS.entitlements */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -196,9 +196,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		A10000FF239F0001 /* FlexyMacV2 */ = {
+		A10000FF239F0001 /* FlexytimeMacOS */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = A1000100239F0001 /* Build configuration list for PBXNativeTarget "FlexyMacV2" */;
+			buildConfigurationList = A1000100239F0001 /* Build configuration list for PBXNativeTarget "FlexytimeMacOS" */;
 			buildPhases = (
 				A10000FE239F0001 /* SwiftLint */,
 				A10000F1239F0001 /* Sources */,
@@ -209,9 +209,9 @@
 			);
 			dependencies = (
 			);
-			name = FlexyMacV2;
-			productName = FlexyMacV2;
-			productReference = A1000000239F0001 /* FlexyMacV2.app */;
+			name = FlexytimeMacOS;
+			productName = FlexytimeMacOS;
+			productReference = A1000000239F0001 /* FlexytimeMacOS.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -229,7 +229,7 @@
 					};
 				};
 			};
-			buildConfigurationList = A1000101239F0001 /* Build configuration list for PBXProject "FlexyMacV2" */;
+			buildConfigurationList = A1000101239F0001 /* Build configuration list for PBXProject "FlexytimeMacOS" */;
 			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -242,7 +242,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				A10000FF239F0001 /* FlexyMacV2 */,
+				A10000FF239F0001 /* FlexytimeMacOS */,
 			);
 		};
 /* End PBXProject section */
@@ -285,7 +285,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A1000001239F0001 /* FlexyMacV2App.swift in Sources */,
+				A1000001239F0001 /* FlexytimeMacOSApp.swift in Sources */,
 				A1000003239F0001 /* AppDelegate.swift in Sources */,
 				A1000005239F0001 /* MenuBarView.swift in Sources */,
 				A1000007239F0001 /* WindowTracker.swift in Sources */,
@@ -426,14 +426,14 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = FlexyMacV2/Resources/FlexyMacV2.entitlements;
+				CODE_SIGN_ENTITLEMENTS = FlexytimeMacOS/Resources/FlexytimeMacOS.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = FlexyMacV2/Resources/Info.plist;
+				INFOPLIST_FILE = FlexytimeMacOS/Resources/Info.plist;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2024 FlexyTime. All rights reserved.";
@@ -442,10 +442,10 @@
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 2.0.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.flexytime.FlexyMacV2;
+				PRODUCT_BUNDLE_IDENTIFIER = com.flexytime.FlexytimeMacOS;
 				PRODUCT_NAME = Flexytime;
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_OBJC_BRIDGING_HEADER = "FlexyMacV2/FlexyMacV2-Bridging-Header.h";
+				SWIFT_OBJC_BRIDGING_HEADER = "FlexytimeMacOS/FlexytimeMacOS-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 			};
 			name = Debug;
@@ -455,14 +455,14 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = FlexyMacV2/Resources/FlexyMacV2.entitlements;
+				CODE_SIGN_ENTITLEMENTS = FlexytimeMacOS/Resources/FlexytimeMacOS.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = FlexyMacV2/Resources/Info.plist;
+				INFOPLIST_FILE = FlexytimeMacOS/Resources/Info.plist;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2024 FlexyTime. All rights reserved.";
@@ -471,10 +471,10 @@
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 2.0.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.flexytime.FlexyMacV2;
+				PRODUCT_BUNDLE_IDENTIFIER = com.flexytime.FlexytimeMacOS;
 				PRODUCT_NAME = Flexytime;
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_OBJC_BRIDGING_HEADER = "FlexyMacV2/FlexyMacV2-Bridging-Header.h";
+				SWIFT_OBJC_BRIDGING_HEADER = "FlexytimeMacOS/FlexytimeMacOS-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 			};
 			name = Release;
@@ -482,7 +482,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		A1000100239F0001 /* Build configuration list for PBXNativeTarget "FlexyMacV2" */ = {
+		A1000100239F0001 /* Build configuration list for PBXNativeTarget "FlexytimeMacOS" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				A1000104239F0001 /* Debug */,
@@ -491,7 +491,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		A1000101239F0001 /* Build configuration list for PBXProject "FlexyMacV2" */ = {
+		A1000101239F0001 /* Build configuration list for PBXProject "FlexytimeMacOS" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				A1000102239F0001 /* Debug */,
