@@ -1,4 +1,5 @@
 import Cocoa
+import CoreGraphics
 import os.log
 
 /// Tracks the currently active window and application
@@ -54,11 +55,30 @@ final class WindowTracker {
     // MARK: - Private Methods
 
     private func getActiveWindowTitle(for app: NSRunningApplication) -> String {
-        // Try to get window title via Accessibility API
-        guard let pid = Optional(app.processIdentifier) else {
-            return "Unknown"
+        let pid = app.processIdentifier
+        let appName = app.localizedName ?? "Unknown"
+
+        // Method 1: Try Accessibility API first (requires Accessibility permission)
+        let (axTitle, axError) = getWindowTitleViaAccessibility(pid: pid)
+        if let title = axTitle {
+            return title
         }
 
+        // Method 2: Fallback to CGWindowList API (requires Screen Recording permission)
+        let (cgTitle, cgError) = getWindowTitleViaCGWindowList(pid: pid)
+        if let title = cgTitle {
+            return title
+        }
+
+        // Print debug info to understand the issue
+        print("⚠️ NO TITLE for \(appName): AX=\(axError), CG=\(cgError)")
+
+        return "No Window"
+    }
+
+    /// Get window title via Accessibility API
+    /// Returns (title, errorDescription)
+    private func getWindowTitleViaAccessibility(pid: pid_t) -> (String?, String) {
         let appRef = AXUIElementCreateApplication(pid)
         var windowValue: CFTypeRef?
 
@@ -68,8 +88,12 @@ final class WindowTracker {
             &windowValue
         )
 
-        guard result == .success, let window = windowValue else {
-            return "No Window"
+        if result != .success {
+            return (nil, "FocusedWindow err=\(result.rawValue)")
+        }
+
+        guard let window = windowValue else {
+            return (nil, "window nil")
         }
 
         var titleValue: CFTypeRef?
@@ -79,10 +103,45 @@ final class WindowTracker {
             &titleValue
         )
 
-        if titleResult == .success, let title = titleValue as? String {
-            return title
+        if titleResult != .success {
+            return (nil, "Title err=\(titleResult.rawValue)")
         }
 
-        return "Untitled"
+        if let title = titleValue as? String, !title.isEmpty {
+            return (title, "ok")
+        }
+
+        return (nil, "title empty")
+    }
+
+    /// Get window title via CGWindowList API (fallback)
+    /// Returns (title, errorDescription)
+    private func getWindowTitleViaCGWindowList(pid: pid_t) -> (String?, String) {
+        let options = CGWindowListOption(arrayLiteral: .optionOnScreenOnly, .excludeDesktopElements)
+        guard let windowList = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] else {
+            return (nil, "list nil")
+        }
+
+        var foundWindow = false
+        // Find windows belonging to this process
+        for window in windowList {
+            guard let windowPID = window[kCGWindowOwnerPID as String] as? pid_t,
+                  windowPID == pid else {
+                continue
+            }
+
+            foundWindow = true
+            let layer = window[kCGWindowLayer as String] as? Int ?? -1
+
+            // Get window name (requires Screen Recording permission)
+            if let windowName = window[kCGWindowName as String] as? String, !windowName.isEmpty {
+                return (windowName, "ok")
+            } else {
+                let hasKey = window[kCGWindowName as String] != nil
+                return (nil, "layer=\(layer) hasKey=\(hasKey)")
+            }
+        }
+
+        return (nil, "no windows")
     }
 }

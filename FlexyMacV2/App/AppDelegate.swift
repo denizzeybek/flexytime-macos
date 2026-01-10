@@ -76,12 +76,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             LoginItemsManager.ensureLoginItemEnabled()
         }
 
-        // V1: macos.background_ensure_permissions()
-        PermissionsManager.ensureAccessibilityPermission()
+        // Check and request both permissions
+        checkAndRequestPermissions()
 
         // V1: sleep(1) - wait for server to start
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
             self?.setupServices()
+        }
+    }
+
+    private func checkAndRequestPermissions() {
+        // Log current permission status
+        let hasAccessibility = PermissionsManager.hasAccessibilityPermission
+        let hasScreenRecording = PermissionsManager.hasScreenRecordingPermission
+
+        logger.info("Permissions - Accessibility: \(hasAccessibility), Screen Recording: \(hasScreenRecording)")
+
+        // Request accessibility permission (V1 compatible)
+        if !hasAccessibility {
+            logger.warning("Accessibility permission not granted")
+            PermissionsManager.ensureAccessibilityPermission()
+        }
+
+        // Request screen recording permission (needed for window titles on macOS 10.15+)
+        if !hasScreenRecording {
+            logger.warning("Screen Recording permission not granted - window titles may not work")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                PermissionsManager.ensureScreenRecordingPermission()
+            }
         }
     }
 

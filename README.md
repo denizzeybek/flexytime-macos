@@ -49,13 +49,13 @@ FlexyMacV2/
 
 ## Build & Run
 
-### Xcode ile
+### Xcode ile (Development)
 
 1. `FlexyMacV2.xcodeproj` dosyasini ac
 2. Scheme olarak `FlexyMacV2` sec
 3. `Cmd + R` ile calistir
 
-### Terminal ile
+### Terminal ile (Development)
 
 ```bash
 # Debug build
@@ -67,6 +67,50 @@ xcodebuild -project FlexyMacV2.xcodeproj -scheme FlexyMacV2 -configuration Relea
 # Clean
 xcodebuild clean -project FlexyMacV2.xcodeproj -scheme FlexyMacV2
 ```
+
+## DMG Paketleme (Distribution)
+
+Uygulamayi dagitim icin DMG olarak paketlemek:
+
+### Hizli Yontem (Test icin - Unsigned)
+
+```bash
+# 1. Universal Binary build al (Intel + Apple Silicon)
+./scripts/build-universal.sh
+
+# 2. DMG olustur
+./scripts/create-dmg.sh
+```
+
+Cikti: `build/Flexytime.dmg`
+
+### Tek Komutla
+
+```bash
+# Tum adimlari calistir (build + dmg)
+./scripts/package-release.sh
+```
+
+### Production (Signed + Notarized)
+
+Apple Developer hesabi gerektirir:
+
+```bash
+./scripts/package-release.sh --notarize \
+  --apple-id "your@email.com" \
+  --team-id "YOURTEAMID" \
+  --app-password "xxxx-xxxx-xxxx-xxxx"
+```
+
+### Build Ciktilari
+
+```
+build/
+├── Flexytime.xcarchive/     # Xcode archive
+└── Flexytime.dmg            # Dagitim dosyasi (Universal Binary)
+```
+
+**Not:** DMG icindeki uygulama hem Intel (x86_64) hem Apple Silicon (arm64) islemcilerde calisir.
 
 ## Linter
 
