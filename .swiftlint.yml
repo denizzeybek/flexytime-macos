@@ -1,0 +1,207 @@
+# SwiftLint Configuration for FlexyMac V2
+
+# Paths to include
+included:
+  - FlexyMacV2
+
+# Paths to exclude
+excluded:
+  - FlexyMacV2.xcodeproj
+  - .build
+  - DerivedData
+
+# ============================================
+# ENFORCED RULES (Errors - Must Fix)
+# ============================================
+
+opt_in_rules:
+  - empty_count
+  - empty_string
+  - force_unwrapping
+  - implicitly_unwrapped_optional
+  - discouraged_optional_boolean
+  - file_header
+  - modifier_order
+  - multiline_arguments
+  - multiline_parameters
+  - vertical_whitespace_closing_braces
+  - vertical_whitespace_opening_braces
+  - yoda_condition
+  - prefer_zero_over_explicit_init
+  - redundant_type_annotation
+  - toggle_bool
+  - unavailable_function
+  - unowned_variable_capture
+
+# ============================================
+# LINE & FILE LENGTH LIMITS
+# ============================================
+
+line_length:
+  warning: 120
+  error: 150
+  ignores_comments: true
+  ignores_urls: true
+  ignores_function_declarations: false
+
+file_length:
+  warning: 200
+  error: 250
+  ignore_comment_only_lines: true
+
+# ============================================
+# FUNCTION & TYPE LIMITS
+# ============================================
+
+function_body_length:
+  warning: 40
+  error: 50
+
+function_parameter_count:
+  warning: 5
+  error: 7
+
+type_body_length:
+  warning: 180
+  error: 200
+
+# ============================================
+# NAMING RULES
+# ============================================
+
+type_name:
+  min_length: 3
+  max_length: 50
+  allowed_symbols: []
+  validates_start_with_lowercase: false
+
+identifier_name:
+  min_length:
+    warning: 2
+    error: 1
+  max_length:
+    warning: 50
+    error: 60
+  excluded:
+    - id
+    - x
+    - y
+    - i
+    - j
+    - ip
+
+# ============================================
+# CODE QUALITY RULES
+# ============================================
+
+# Force cast is dangerous
+force_cast:
+  severity: error
+
+# Force try is dangerous
+force_try:
+  severity: error
+
+# Avoid force unwrapping
+force_unwrapping:
+  severity: warning
+
+# No duplicate imports
+duplicate_imports:
+  severity: error
+
+# Prefer let over var
+prefer_self_in_static_references:
+  severity: warning
+
+# Cyclomatic complexity
+cyclomatic_complexity:
+  warning: 10
+  error: 15
+  ignores_case_statements: true
+
+# Nesting depth
+nesting:
+  type_level:
+    warning: 2
+    error: 3
+  function_level:
+    warning: 3
+    error: 4
+
+# ============================================
+# STYLE RULES
+# ============================================
+
+# Trailing whitespace
+trailing_whitespace:
+  ignores_empty_lines: true
+  ignores_comments: true
+
+# Trailing newline
+trailing_newline:
+  severity: warning
+
+# Trailing comma in arrays/dicts
+trailing_comma:
+  mandatory_comma: false
+
+# Colon spacing
+colon:
+  apply_to_dictionaries: true
+
+# Comma spacing
+comma:
+  severity: warning
+
+# Opening brace spacing
+opening_brace:
+  severity: warning
+
+# Closing brace
+closing_brace:
+  severity: warning
+
+# Statement position (else, catch on same line)
+statement_position:
+  statement_mode: default
+
+# Vertical whitespace
+vertical_whitespace:
+  max_empty_lines: 2
+
+# ============================================
+# DISABLED RULES
+# ============================================
+
+disabled_rules:
+  - todo  # Allow TODO comments during development
+  - missing_docs  # Not requiring docs for now
+  - type_contents_order  # Too restrictive
+
+# ============================================
+# CUSTOM RULES
+# ============================================
+
+custom_rules:
+  no_print_in_production:
+    name: "No print() in production code"
+    regex: "\\bprint\\("
+    message: "Use Logger instead of print() for production code"
+    severity: warning
+    match_kinds:
+      - identifier
+
+  no_hardcoded_urls:
+    name: "No hardcoded URLs"
+    regex: "\"https?://[^\"]+\""
+    message: "Move URLs to configuration or constants"
+    severity: warning
+    match_kinds:
+      - string
+
+# ============================================
+# REPORTER
+# ============================================
+
+reporter: "xcode"

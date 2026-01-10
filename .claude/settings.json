@@ -1,0 +1,11 @@
+{
+  "project": {
+    "name": "FlexyMac V2",
+    "type": "macos-menubar-app",
+    "language": "swift",
+    "framework": "SwiftUI"
+  },
+  "rules": {
+    "enforced": true
+  }
+}
