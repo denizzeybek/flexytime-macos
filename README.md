@@ -1,99 +1,138 @@
-# FlexyMac V2
+# Flexytime macOS
 
-macOS menu bar uygulamasi - kullanici aktivitelerini (aktif pencere, idle suresi) takip eder ve sunucuya gonderir.
+macOS menu bar uygulaması - kullanıcı aktivitelerini (aktif pencere, idle süresi) takip eder ve sunucuya gönderir.
 
-## Gereksinimler
+## Prerequisites (Ön Gereksinimler)
 
-- macOS 13.0+ (Ventura)
-- Xcode 14.1+
-- SwiftLint (`brew install swiftlint`)
+### Sistem Gereksinimleri
+- **macOS 13.0+** (Ventura veya üstü)
+- **Xcode 14.1+** (App Store'dan indir)
+- **Apple Developer Account** (opsiyonel - sadece code signing için)
+
+### Araçlar
+
+```bash
+# 1. Homebrew kur (yoksa)
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# 2. SwiftLint kur (kod kalitesi için)
+brew install swiftlint
+
+# 3. Xcode Command Line Tools kur
+xcode-select --install
+```
+
+### macOS İzinleri
+
+Uygulama çalışmak için **iki izin** gerektirir:
+
+| İzin | Neden Gerekli | Nereden Verilir |
+|------|---------------|-----------------|
+| **Accessibility** | Pencere başlıklarını okumak için | System Settings → Privacy & Security → Accessibility |
+| **Screen Recording** | macOS 10.15+ için pencere isimlerini okumak | System Settings → Privacy & Security → Screen Recording |
+
+> **Not:** İzinleri verdikten sonra uygulama yeniden başlatılmalıdır.
 
 ## Kurulum
 
 ```bash
-# SwiftLint kur (henuz kurulu degilse)
+# 1. Repo'yu klonla
+git clone https://github.com/denizzeybek/flexytime-macos.git
+cd flexytime-macos
+
+# 2. SwiftLint kur (henüz kurulu değilse)
 brew install swiftlint
 
-# Projeyi Xcode'da ac
-open FlexyMacV2.xcodeproj
+# 3. Projeyi Xcode'da aç
+open FlexytimeMacOS.xcodeproj
 ```
 
-## Proje Yapisi
+## Proje Yapısı
 
 ```
-FlexyMacV2/
-├── App/                    # Uygulama giris noktasi
-│   ├── FlexyMacV2App.swift # @main - MenuBarExtra
-│   ├── AppDelegate.swift   # Lifecycle yonetimi
-│   └── MenuBarView.swift   # Tray menu icerigi
+FlexytimeMacOS/
+├── App/                    # Uygulama giriş noktası
+│   ├── FlexytimeMacOSApp.swift  # @main - MenuBarExtra
+│   ├── AppDelegate.swift   # Lifecycle yönetimi
+│   ├── MenuBarView.swift   # Tray menü içeriği
+│   └── SetupView.swift     # İlk kurulum ekranı
 │
-├── Services/               # Is mantigi
+├── Services/               # İş mantığı
 │   ├── WindowTracker.swift # Aktif pencere takibi
 │   ├── IdleDetector.swift  # AFK tespiti
 │   ├── ActivityCollector.swift  # Event toplama
-│   └── APIClient.swift     # HTTP iletisimi
+│   └── APIClient.swift     # HTTP iletişimi
 │
 ├── Models/                 # Veri modelleri
 │   ├── ActivityEvent.swift # Aktivite eventi
-│   └── Configuration.swift # Uygulama ayarlari
+│   └── Configuration.swift # Uygulama ayarları
 │
-├── Extensions/             # Swift extension'lari
+├── Helpers/                # Yardımcı sınıflar
+│   ├── SystemInfo.swift    # Sistem bilgileri
+│   ├── LoginItemsManager.swift  # Login item yönetimi
+│   └── PermissionsManager.swift # İzin yönetimi
+│
+├── Encryption/             # Şifreleme
+│   ├── ZipEncryption.swift # ZIP şifreleme
+│   └── minizip/            # C kütüphanesi
+│
+├── Extensions/             # Swift extension'ları
 │   ├── Logger+Extension.swift
 │   └── Date+Extension.swift
 │
-└── Resources/              # Asset ve config dosyalari
+└── Resources/              # Asset ve config dosyaları
     ├── Assets.xcassets
     ├── Info.plist
-    └── FlexyMacV2.entitlements
+    └── FlexytimeMacOS.entitlements
 ```
 
 ## Build & Run
 
 ### Xcode ile (Development)
 
-1. `FlexyMacV2.xcodeproj` dosyasini ac
-2. Scheme olarak `FlexyMacV2` sec
-3. `Cmd + R` ile calistir
+1. `FlexytimeMacOS.xcodeproj` dosyasını aç
+2. Scheme olarak `FlexytimeMacOS` seç
+3. `Cmd + R` ile çalıştır
 
 ### Terminal ile (Development)
 
 ```bash
 # Debug build
-xcodebuild -project FlexyMacV2.xcodeproj -scheme FlexyMacV2 -configuration Debug build
+xcodebuild -project FlexytimeMacOS.xcodeproj -scheme FlexytimeMacOS -configuration Debug build
 
 # Release build
-xcodebuild -project FlexyMacV2.xcodeproj -scheme FlexyMacV2 -configuration Release build
+xcodebuild -project FlexytimeMacOS.xcodeproj -scheme FlexytimeMacOS -configuration Release build
 
 # Clean
-xcodebuild clean -project FlexyMacV2.xcodeproj -scheme FlexyMacV2
+xcodebuild clean -project FlexytimeMacOS.xcodeproj -scheme FlexytimeMacOS
 ```
 
 ## DMG Paketleme (Distribution)
 
-Uygulamayi dagitim icin DMG olarak paketlemek:
+Uygulamayı dağıtım için DMG olarak paketlemek:
 
-### Hizli Yontem (Test icin - Unsigned)
+### Hızlı Yöntem (Test için - Unsigned)
 
 ```bash
 # 1. Universal Binary build al (Intel + Apple Silicon)
 ./scripts/build-universal.sh
 
-# 2. DMG olustur
+# 2. DMG oluştur
 ./scripts/create-dmg.sh
 ```
 
-Cikti: `build/Flexytime.dmg`
+Çıktı: `build/Flexytime-2.0.0-universal.dmg`
 
 ### Tek Komutla
 
 ```bash
-# Tum adimlari calistir (build + dmg)
+# Tüm adımları çalıştır (build + dmg)
 ./scripts/package-release.sh
 ```
 
 ### Production (Signed + Notarized)
 
-Apple Developer hesabi gerektirir:
+Apple Developer hesabı gerektirir:
 
 ```bash
 ./scripts/package-release.sh --notarize \
@@ -102,67 +141,124 @@ Apple Developer hesabi gerektirir:
   --app-password "xxxx-xxxx-xxxx-xxxx"
 ```
 
-### Build Ciktilari
+### Build Çıktıları
 
 ```
 build/
 ├── Flexytime.xcarchive/     # Xcode archive
-└── Flexytime.dmg            # Dagitim dosyasi (Universal Binary)
+└── Flexytime-2.0.0-universal.dmg  # Dağıtım dosyası (Universal Binary)
 ```
 
-**Not:** DMG icindeki uygulama hem Intel (x86_64) hem Apple Silicon (arm64) islemcilerde calisir.
+**Not:** DMG içindeki uygulama hem Intel (x86_64) hem Apple Silicon (arm64) işlemcilerde çalışır.
+
+## İzin Sorunları Giderme
+
+Eğer "No Window" hatası alıyorsanız:
+
+### 1. İzinleri Kontrol Et
+```bash
+# System Settings'i aç
+open "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
+open "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"
+```
+
+### 2. TCC Reset (İzinleri Sıfırla)
+```bash
+# İzin veritabanını sıfırla
+./scripts/reset-permissions.sh
+
+# veya manuel:
+tccutil reset Accessibility
+tccutil reset ScreenCapture
+```
+
+Ardından uygulamayı yeniden başlat ve izinleri tekrar ver.
 
 ## Linter
 
-Her kod degisikliginden sonra SwiftLint calistirilmali:
+Her kod değişikliğinden sonra SwiftLint çalıştırılmalı:
 
 ```bash
-# Lint kontrolu
+# Lint kontrolü
 swiftlint
 
-# Otomatik duzeltme
+# Otomatik düzeltme
 swiftlint --fix
 ```
 
-## macOS Izinleri
+## Konfigürasyon
 
-Uygulama asagidaki izinlere ihtiyac duyar:
+Varsayılan değerler `Configuration.swift` içinde tanımlı:
 
-1. **Accessibility**: Pencere basliklarini okumak icin
-   - System Preferences > Security & Privacy > Privacy > Accessibility
-
-## Konfigurasyon
-
-Varsayilan degerler `Configuration.swift` icinde tanimli:
-
-| Ayar | Varsayilan | Aciklama |
+| Ayar | Varsayılan | Açıklama |
 |------|------------|----------|
-| `pollingInterval` | 1 sn | Pencere kontrol sikligi |
-| `syncInterval` | 60 sn | Sunucuya gonderim sikligi |
-| `idleThreshold` | 60 sn | AFK esigi |
+| `pollingInterval` | 1 sn | Pencere kontrol sıklığı |
+| `syncInterval` | 60 sn | Sunucuya gönderim sıklığı |
+| `idleThreshold` | 60 sn | AFK eşiği |
 
 ## Mimari
 
 ```
 ┌─────────────────────────────────────────────┐
-│           FlexyMacV2App (MenuBarExtra)      │
+│       FlexytimeMacOSApp (MenuBarExtra)      │
 │              ↓                              │
-│           AppDelegate                        │
+│           AppDelegate                       │
 │              ↓                              │
-│        ActivityCollector                     │
+│        ActivityCollector                    │
 │         ↙         ↘                         │
 │  WindowTracker   IdleDetector               │
 │              ↘   ↙                          │
-│           APIClient                          │
+│           APIClient                         │
 │              ↓                              │
-│         HTTP POST                            │
+│         HTTP POST                           │
 └─────────────────────────────────────────────┘
 ```
 
-## Kod Kurallari
+## Kod Kuralları
 
-1. Dosya basina max 250 satir
-2. Kod tekrari yasak - extract et
-3. Her degisiklikten sonra `swiftlint` calistir
+1. Dosya başına max 250 satır
+2. Kod tekrarı yasak - extract et
+3. Her değişiklikten sonra `swiftlint` çalıştır
 4. `guard` ile early exit kullan
 5. `let` > `var` tercih et
+
+## Troubleshooting
+
+### Build Hataları
+
+```bash
+# DerivedData temizle
+rm -rf ~/Library/Developer/Xcode/DerivedData
+
+# SPM cache temizle
+rm -rf ~/Library/Caches/org.swift.swiftpm
+```
+
+### Uygulama Çalışmıyor
+
+1. Console.app'ı aç ve "Flexytime" filtrele
+2. Hata mesajlarını kontrol et
+3. İzinleri kontrol et (Accessibility + Screen Recording)
+
+### Logları Görüntüle
+
+```bash
+# Console.app ile
+open -a Console
+
+# veya Terminal ile
+log stream --predicate 'subsystem == "com.flexytime.macos"' --level debug
+```
+
+## Scripts
+
+| Script | Açıklama |
+|--------|----------|
+| `scripts/build-universal.sh` | Universal binary oluşturur |
+| `scripts/create-dmg.sh` | DMG paketi oluşturur |
+| `scripts/package-release.sh` | Build + DMG tek komutta |
+| `scripts/reset-permissions.sh` | TCC izinlerini sıfırlar |
+
+## License
+
+MIT
