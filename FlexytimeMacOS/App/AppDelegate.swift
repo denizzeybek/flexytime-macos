@@ -10,6 +10,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private var activityCollector: ActivityCollector?
     private var setupWindow: NSWindow?
+    private var permissionsWindow: NSWindow?
     private let logger = Logger.app
 
     /// Check if setup is needed (no ServiceKey configured)
@@ -18,15 +19,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return config.serviceKey == nil || config.serviceKey?.isEmpty == true
     }
 
+    /// Check if permissions are missing
+    var needsPermissions: Bool {
+        !PermissionsManager.hasAccessibilityPermission || !PermissionsManager.hasScreenRecordingPermission
+    }
+
     // MARK: - Lifecycle
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         logger.info("Flexytime started")
 
-        // Check if setup is needed
+        // Check if setup is needed (ServiceKey)
         if needsSetup {
             logger.info("Setup required - showing setup window")
             showSetupWindow()
+            return
+        }
+
+        // Check if permissions are needed
+        if needsPermissions {
+            logger.info("Permissions required - showing permissions window")
+            showPermissionsWindow()
             return
         }
 
@@ -45,7 +58,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let setupView = SetupView(onComplete: { [weak self] in
             self?.setupWindow?.close()
             self?.setupWindow = nil
-            self?.startNormalOperation()
+            // After setup, check permissions
+            if self?.needsPermissions == true {
+                self?.showPermissionsWindow()
+            } else {
+                self?.startNormalOperation()
+            }
         })
 
         let window = NSWindow(
@@ -54,7 +72,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             backing: .buffered,
             defer: false
         )
-        window.title = "Flexytime Kurulumu"
+        window.title = "Flexytime Setup"
         window.contentView = NSHostingView(rootView: setupView)
         window.center()
         window.makeKeyAndOrderFront(nil)
@@ -65,10 +83,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         setupWindow = window
     }
 
+    func showPermissionsWindow() {
+        let permissionsView = PermissionsView(onAllGranted: { [weak self] in
+            self?.permissionsWindow?.close()
+            self?.permissionsWindow = nil
+            self?.startNormalOperation()
+        })
+
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 480, height: 380),
+            styleMask: [.titled, .closable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "Flexytime needs permissions"
+        window.contentView = NSHostingView(rootView: permissionsView)
+        window.center()
+        window.makeKeyAndOrderFront(nil)
+
+        // Bring app to foreground
+        NSApp.activate(ignoringOtherApps: true)
+
+        permissionsWindow = window
+    }
+
     // MARK: - Normal Operation
 
     private func startNormalOperation() {
         logger.info("Starting normal operation")
+
+        // Log permission status
+        let hasAccessibility = PermissionsManager.hasAccessibilityPermission
+        let hasScreenRecording = PermissionsManager.hasScreenRecordingPermission
+        logger.info("Permissions - Accessibility: \(hasAccessibility), Screen Recording: \(hasScreenRecording)")
 
         // V1: Add to login items if not already added
         if !LoginItemsManager.isLoginItemEnabled {
@@ -76,35 +123,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             LoginItemsManager.ensureLoginItemEnabled()
         }
 
-        // Check and request both permissions
-        checkAndRequestPermissions()
-
-        // V1: sleep(1) - wait for server to start
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-            self?.setupServices()
-        }
-    }
-
-    private func checkAndRequestPermissions() {
-        // Log current permission status
-        let hasAccessibility = PermissionsManager.hasAccessibilityPermission
-        let hasScreenRecording = PermissionsManager.hasScreenRecordingPermission
-
-        logger.info("Permissions - Accessibility: \(hasAccessibility), Screen Recording: \(hasScreenRecording)")
-
-        // Request accessibility permission (V1 compatible)
-        if !hasAccessibility {
-            logger.warning("Accessibility permission not granted")
-            PermissionsManager.ensureAccessibilityPermission()
-        }
-
-        // Request screen recording permission (needed for window titles on macOS 10.15+)
-        if !hasScreenRecording {
-            logger.warning("Screen Recording permission not granted - window titles may not work")
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                PermissionsManager.ensureScreenRecordingPermission()
-            }
-        }
+        // Start services
+        setupServices()
     }
 
     private func setupServices() {

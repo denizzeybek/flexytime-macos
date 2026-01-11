@@ -1,63 +1,30 @@
 import Cocoa
 import ApplicationServices
 import CoreGraphics
+import os.log
 
 /// V1-compatible permissions manager
 /// Matches macos.py ensure_permissions()
 enum PermissionsManager {
 
+    private static let logger = Logger(subsystem: "com.flexytime.macos", category: "Permissions")
+
     /// Check if accessibility permissions are granted
     /// V1: AXIsProcessTrusted()
     static var hasAccessibilityPermission: Bool {
-        AXIsProcessTrusted()
+        let result = AXIsProcessTrusted()
+        logger.info("AXIsProcessTrusted returned: \(result)")
+        return result
     }
 
     /// Check if screen recording permissions are granted
     /// Required for kCGWindowName access since macOS 10.15+
     static var hasScreenRecordingPermission: Bool {
-        checkScreenRecordingPermission()
-    }
-
-    /// Checks screen recording permission by testing if we can read window names
-    /// Uses a more reliable method: checks if we can read names from regular app windows
-    private static func checkScreenRecordingPermission() -> Bool {
-        let options = CGWindowListOption(arrayLiteral: .optionOnScreenOnly, .excludeDesktopElements)
-        guard let windowList = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] else {
-            return false
+        if #available(macOS 10.15, *) {
+            let preflight = CGPreflightScreenCaptureAccess()
+            logger.info("CGPreflightScreenCaptureAccess returned: \(preflight)")
+            return preflight
         }
-
-        let currentPID = ProcessInfo.processInfo.processIdentifier
-        var foundOtherAppWindow = false
-        var couldReadWindowName = false
-
-        for window in windowList {
-            guard let windowPID = window[kCGWindowOwnerPID as String] as? pid_t,
-                  windowPID != currentPID,
-                  let windowLayer = window[kCGWindowLayer as String] as? Int,
-                  windowLayer == 0 else { // Layer 0 = normal windows
-                continue
-            }
-
-            // Found a normal window from another app
-            foundOtherAppWindow = true
-
-            // Check if we can read its name
-            if let name = window[kCGWindowName as String] as? String, !name.isEmpty {
-                couldReadWindowName = true
-                break
-            }
-        }
-
-        // If we found other app windows but couldn't read any names, permission is missing
-        if foundOtherAppWindow && !couldReadWindowName {
-            return false
-        }
-
-        // If no other windows found, we can't determine - assume no permission to be safe
-        if !foundOtherAppWindow {
-            return false
-        }
-
         return true
     }
 
@@ -150,6 +117,45 @@ enum PermissionsManager {
             string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"
         )!
         NSWorkspace.shared.open(url)
+    }
+
+    /// Request screen capture access - adds app to Screen Recording list
+    /// This will show a system prompt, but it's necessary to add app to the list
+    static func requestScreenCaptureAccess() {
+        if #available(macOS 10.15, *) {
+            CGRequestScreenCaptureAccess()
+        }
+    }
+
+    /// Track if we've already requested screen recording
+    private static var screenRecordingRequested: Bool {
+        get { UserDefaults.standard.bool(forKey: "screenRecordingRequested") }
+        set { UserDefaults.standard.set(newValue, forKey: "screenRecordingRequested") }
+    }
+
+    /// Check if we've already shown the popup this session
+    private static var hasShownScreenRecordingPopup: Bool {
+        get { UserDefaults.standard.bool(forKey: "hasShownScreenRecordingPopup") }
+        set { UserDefaults.standard.set(newValue, forKey: "hasShownScreenRecordingPopup") }
+    }
+
+    /// Reset the flag if permission is not granted (called on app start)
+    static func resetScreenRecordingFlagIfNeeded() {
+        if !hasScreenRecordingPermission {
+            logger.info("Permission not granted, resetting popup flag")
+            hasShownScreenRecordingPopup = false
+        }
+    }
+
+    /// Request screen capture - always opens System Settings
+    /// CGRequestScreenCaptureAccess is unreliable for unsigned apps
+    static func requestOrOpenScreenRecording() {
+        if #available(macOS 10.15, *) {
+            logger.info("requestOrOpenScreenRecording - opening System Settings directly")
+            // CGRequestScreenCaptureAccess doesn't work reliably for unsigned apps
+            // Just open System Settings directly - user will add app manually
+            openScreenRecordingSettings()
+        }
     }
 
     /// Ensure both permissions are granted
