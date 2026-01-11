@@ -1,86 +1,86 @@
 # Flexytime macOS
 
-macOS menu bar uygulaması - kullanıcı aktivitelerini (aktif pencere, idle süresi) takip eder ve sunucuya gönderir.
+A macOS menu bar application that tracks user activity (active windows, idle time) and sends data to a remote server.
 
-## Prerequisites (Ön Gereksinimler)
+## Prerequisites
 
-### Sistem Gereksinimleri
-- **macOS 13.0+** (Ventura veya üstü)
-- **Xcode 14.1+** (App Store'dan indir)
-- **Apple Developer Account** (opsiyonel - sadece code signing için)
+### System Requirements
+- **macOS 13.0+** (Ventura or later)
+- **Xcode 14.1+** (Download from App Store)
+- **Apple Developer Account** (optional - only for code signing)
 
-### Araçlar
+### Tools
 
 ```bash
-# 1. Homebrew kur (yoksa)
+# 1. Install Homebrew (if not installed)
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
-# 2. SwiftLint kur (kod kalitesi için)
+# 2. Install SwiftLint (for code quality)
 brew install swiftlint
 
-# 3. Xcode Command Line Tools kur
+# 3. Install Xcode Command Line Tools
 xcode-select --install
 ```
 
-### macOS İzinleri
+### macOS Permissions
 
-Uygulama çalışmak için **iki izin** gerektirir:
+The application requires **two permissions** to function:
 
-| İzin | Neden Gerekli | Nereden Verilir |
-|------|---------------|-----------------|
-| **Accessibility** | Pencere başlıklarını okumak için | System Settings → Privacy & Security → Accessibility |
-| **Screen Recording** | macOS 10.15+ için pencere isimlerini okumak | System Settings → Privacy & Security → Screen Recording |
+| Permission | Why Required | Where to Grant |
+|------------|--------------|----------------|
+| **Accessibility** | To read window titles | System Settings → Privacy & Security → Accessibility |
+| **Screen Recording** | To read window names on macOS 10.15+ | System Settings → Privacy & Security → Screen Recording |
 
-> **Not:** İzinleri verdikten sonra uygulama yeniden başlatılmalıdır.
+> **Note:** The application must be restarted after granting permissions.
 
-## Kurulum
+## Installation
 
 ```bash
-# 1. Repo'yu klonla
+# 1. Clone the repository
 git clone https://github.com/denizzeybek/flexytime-macos.git
 cd flexytime-macos
 
-# 2. SwiftLint kur (henüz kurulu değilse)
+# 2. Install SwiftLint (if not already installed)
 brew install swiftlint
 
-# 3. Projeyi Xcode'da aç
+# 3. Open the project in Xcode
 open FlexytimeMacOS.xcodeproj
 ```
 
-## Proje Yapısı
+## Project Structure
 
 ```
 FlexytimeMacOS/
-├── App/                    # Uygulama giriş noktası
+├── App/                    # Application entry point
 │   ├── FlexytimeMacOSApp.swift  # @main - MenuBarExtra
-│   ├── AppDelegate.swift   # Lifecycle yönetimi
-│   ├── MenuBarView.swift   # Tray menü içeriği
-│   └── SetupView.swift     # İlk kurulum ekranı
+│   ├── AppDelegate.swift   # Lifecycle management
+│   ├── MenuBarView.swift   # Tray menu content
+│   └── SetupView.swift     # Initial setup screen
 │
-├── Services/               # İş mantığı
-│   ├── WindowTracker.swift # Aktif pencere takibi
-│   ├── IdleDetector.swift  # AFK tespiti
-│   ├── ActivityCollector.swift  # Event toplama
-│   └── APIClient.swift     # HTTP iletişimi
+├── Services/               # Business logic
+│   ├── WindowTracker.swift # Active window tracking
+│   ├── IdleDetector.swift  # AFK detection
+│   ├── ActivityCollector.swift  # Event collection
+│   └── APIClient.swift     # HTTP communication
 │
-├── Models/                 # Veri modelleri
-│   ├── ActivityEvent.swift # Aktivite eventi
-│   └── Configuration.swift # Uygulama ayarları
+├── Models/                 # Data models
+│   ├── ActivityEvent.swift # Activity event
+│   └── Configuration.swift # Application settings
 │
-├── Helpers/                # Yardımcı sınıflar
-│   ├── SystemInfo.swift    # Sistem bilgileri
-│   ├── LoginItemsManager.swift  # Login item yönetimi
-│   └── PermissionsManager.swift # İzin yönetimi
+├── Helpers/                # Utility classes
+│   ├── SystemInfo.swift    # System information
+│   ├── LoginItemsManager.swift  # Login item management
+│   └── PermissionsManager.swift # Permission management
 │
-├── Encryption/             # Şifreleme
-│   ├── ZipEncryption.swift # ZIP şifreleme
-│   └── minizip/            # C kütüphanesi
+├── Encryption/             # Encryption
+│   ├── ZipEncryption.swift # ZIP encryption
+│   └── minizip/            # C library
 │
-├── Extensions/             # Swift extension'ları
+├── Extensions/             # Swift extensions
 │   ├── Logger+Extension.swift
 │   └── Date+Extension.swift
 │
-└── Resources/              # Asset ve config dosyaları
+└── Resources/              # Assets and config files
     ├── Assets.xcassets
     ├── Info.plist
     └── FlexytimeMacOS.entitlements
@@ -88,13 +88,13 @@ FlexytimeMacOS/
 
 ## Build & Run
 
-### Xcode ile (Development)
+### With Xcode (Development)
 
-1. `FlexytimeMacOS.xcodeproj` dosyasını aç
-2. Scheme olarak `FlexytimeMacOS` seç
-3. `Cmd + R` ile çalıştır
+1. Open `FlexytimeMacOS.xcodeproj`
+2. Select `FlexytimeMacOS` as the scheme
+3. Press `Cmd + R` to run
 
-### Terminal ile (Development)
+### With Terminal (Development)
 
 ```bash
 # Debug build
@@ -107,32 +107,32 @@ xcodebuild -project FlexytimeMacOS.xcodeproj -scheme FlexytimeMacOS -configurati
 xcodebuild clean -project FlexytimeMacOS.xcodeproj -scheme FlexytimeMacOS
 ```
 
-## DMG Paketleme (Distribution)
+## DMG Packaging (Distribution)
 
-Uygulamayı dağıtım için DMG olarak paketlemek:
+Package the application as a DMG for distribution:
 
-### Hızlı Yöntem (Test için - Unsigned)
+### Quick Method (For Testing - Unsigned)
 
 ```bash
-# 1. Universal Binary build al (Intel + Apple Silicon)
+# 1. Build Universal Binary (Intel + Apple Silicon)
 ./scripts/build-universal.sh
 
-# 2. DMG oluştur
+# 2. Create DMG
 ./scripts/create-dmg.sh
 ```
 
-Çıktı: `build/Flexytime-2.0.0-universal.dmg`
+Output: `build/Flexytime-2.0.0-universal.dmg`
 
-### Tek Komutla
+### Single Command
 
 ```bash
-# Tüm adımları çalıştır (build + dmg)
+# Run all steps (build + dmg)
 ./scripts/package-release.sh
 ```
 
 ### Production (Signed + Notarized)
 
-Apple Developer hesabı gerektirir:
+Requires an Apple Developer account:
 
 ```bash
 ./scripts/package-release.sh --notarize \
@@ -141,62 +141,62 @@ Apple Developer hesabı gerektirir:
   --app-password "xxxx-xxxx-xxxx-xxxx"
 ```
 
-### Build Çıktıları
+### Build Outputs
 
 ```
 build/
 ├── Flexytime.xcarchive/     # Xcode archive
-└── Flexytime-2.0.0-universal.dmg  # Dağıtım dosyası (Universal Binary)
+└── Flexytime-2.0.0-universal.dmg  # Distribution file (Universal Binary)
 ```
 
-**Not:** DMG içindeki uygulama hem Intel (x86_64) hem Apple Silicon (arm64) işlemcilerde çalışır.
+**Note:** The application in the DMG runs on both Intel (x86_64) and Apple Silicon (arm64) processors.
 
-## İzin Sorunları Giderme
+## Troubleshooting Permissions
 
-Eğer "No Window" hatası alıyorsanız:
+If you're getting "No Window" errors:
 
-### 1. İzinleri Kontrol Et
+### 1. Check Permissions
 ```bash
-# System Settings'i aç
+# Open System Settings
 open "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
 open "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"
 ```
 
-### 2. TCC Reset (İzinleri Sıfırla)
+### 2. TCC Reset (Reset Permissions)
 ```bash
-# İzin veritabanını sıfırla
+# Reset permission database
 ./scripts/reset-permissions.sh
 
-# veya manuel:
+# or manually:
 tccutil reset Accessibility
 tccutil reset ScreenCapture
 ```
 
-Ardından uygulamayı yeniden başlat ve izinleri tekrar ver.
+Then restart the application and grant permissions again.
 
 ## Linter
 
-Her kod değişikliğinden sonra SwiftLint çalıştırılmalı:
+SwiftLint should be run after every code change:
 
 ```bash
-# Lint kontrolü
+# Lint check
 swiftlint
 
-# Otomatik düzeltme
+# Auto-fix
 swiftlint --fix
 ```
 
-## Konfigürasyon
+## Configuration
 
-Varsayılan değerler `Configuration.swift` içinde tanımlı:
+Default values are defined in `Configuration.swift`:
 
-| Ayar | Varsayılan | Açıklama |
-|------|------------|----------|
-| `pollingInterval` | 1 sn | Pencere kontrol sıklığı |
-| `syncInterval` | 60 sn | Sunucuya gönderim sıklığı |
-| `idleThreshold` | 60 sn | AFK eşiği |
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `pollingInterval` | 1 sec | Window check frequency |
+| `syncInterval` | 60 sec | Server sync frequency |
+| `idleThreshold` | 60 sec | AFK threshold |
 
-## Mimari
+## Architecture
 
 ```
 ┌─────────────────────────────────────────────┐
@@ -214,50 +214,50 @@ Varsayılan değerler `Configuration.swift` içinde tanımlı:
 └─────────────────────────────────────────────┘
 ```
 
-## Kod Kuralları
+## Code Guidelines
 
-1. Dosya başına max 250 satır
-2. Kod tekrarı yasak - extract et
-3. Her değişiklikten sonra `swiftlint` çalıştır
-4. `guard` ile early exit kullan
-5. `let` > `var` tercih et
+1. Maximum 250 lines per file
+2. No code duplication - extract to functions
+3. Run `swiftlint` after every change
+4. Use `guard` for early exit
+5. Prefer `let` over `var`
 
 ## Troubleshooting
 
-### Build Hataları
+### Build Errors
 
 ```bash
-# DerivedData temizle
+# Clear DerivedData
 rm -rf ~/Library/Developer/Xcode/DerivedData
 
-# SPM cache temizle
+# Clear SPM cache
 rm -rf ~/Library/Caches/org.swift.swiftpm
 ```
 
-### Uygulama Çalışmıyor
+### Application Not Working
 
-1. Console.app'ı aç ve "Flexytime" filtrele
-2. Hata mesajlarını kontrol et
-3. İzinleri kontrol et (Accessibility + Screen Recording)
+1. Open Console.app and filter by "Flexytime"
+2. Check error messages
+3. Verify permissions (Accessibility + Screen Recording)
 
-### Logları Görüntüle
+### View Logs
 
 ```bash
-# Console.app ile
+# With Console.app
 open -a Console
 
-# veya Terminal ile
+# Or with Terminal
 log stream --predicate 'subsystem == "com.flexytime.macos"' --level debug
 ```
 
 ## Scripts
 
-| Script | Açıklama |
-|--------|----------|
-| `scripts/build-universal.sh` | Universal binary oluşturur |
-| `scripts/create-dmg.sh` | DMG paketi oluşturur |
-| `scripts/package-release.sh` | Build + DMG tek komutta |
-| `scripts/reset-permissions.sh` | TCC izinlerini sıfırlar |
+| Script | Description |
+|--------|-------------|
+| `scripts/build-universal.sh` | Creates universal binary |
+| `scripts/create-dmg.sh` | Creates DMG package |
+| `scripts/package-release.sh` | Build + DMG in one command |
+| `scripts/reset-permissions.sh` | Resets TCC permissions |
 
 ## License
 
