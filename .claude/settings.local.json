@@ -6,6 +6,9 @@
       "Bash(find:*)",
       "Bash(xcodebuild:*)",
       "Bash(./scripts/create-dmg.sh:*)"
+    ],
+    "additionalDirectories": [
+      "/Users/denizzeybek/Documents/FLEXYTIME/flexy-mac-v2/.claude/commands"
     ]
   }
 }

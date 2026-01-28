@@ -16,8 +16,7 @@ NC='\033[0m' # No Color
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP_NAME="Flexytime"
 BUILD_DIR="${PROJECT_DIR}/build"
-ARCHIVE_PATH="${BUILD_DIR}/${APP_NAME}.xcarchive"
-APP_PATH="${ARCHIVE_PATH}/Products/Applications/${APP_NAME}.app"
+APP_PATH="${BUILD_DIR}/${APP_NAME}/${APP_NAME}.app"
 DMG_DIR="${BUILD_DIR}/dmg-contents"
 
 # Get version from app bundle
@@ -39,7 +38,7 @@ echo ""
 # Check if archive exists
 if [ ! -d "${APP_PATH}" ]; then
     echo -e "${RED}Error: App bundle not found at ${APP_PATH}${NC}"
-    echo -e "Run ./scripts/build-universal.sh first"
+    echo -e "Export notarized app from Xcode to: ${BUILD_DIR}/${APP_NAME}/"
     exit 1
 fi
 
