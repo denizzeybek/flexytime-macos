@@ -26,8 +26,7 @@ final class ZipEncryption {
     // MARK: - Public Methods
 
     /// Creates a password-protected ZIP file (V1 compatible)
-    /// Uses pyminizip via Python for 100% V1 compatibility
-    /// Entry name inside ZIP = filenameInZip (achieved via temp directory + symlink)
+    /// Uses native C minizip-bridge for cross-machine compatibility
     static func createPasswordZip(
         inputPath: String,
         outputPath: String,
@@ -35,42 +34,16 @@ final class ZipEncryption {
         password: String,
         compressionLevel: Int32 = 5
     ) throws {
-        // Create a temp directory and symlink the file with the desired entry name
-        // This ensures pyminizip uses filenameInZip as the entry name, not the full path
-        let tempDir = NSTemporaryDirectory() + "flexytime_zip_\(UUID().uuidString)"
-        let tempFilePath = "\(tempDir)/\(filenameInZip)"
+        let result = create_password_zip(
+            outputPath,
+            inputPath,
+            filenameInZip,
+            password,
+            Int32(compressionLevel)
+        )
 
-        try FileManager.default.createDirectory(atPath: tempDir, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(atPath: tempDir) }
-
-        // Copy the file with the desired name
-        try FileManager.default.copyItem(atPath: inputPath, toPath: tempFilePath)
-
-        // Use pyminizip with the temp file so entry name = filenameInZip
-        let pythonScript = """
-        import pyminizip, os
-        os.chdir('\(tempDir)')
-        pyminizip.compress('\(filenameInZip)', None, '\(outputPath)', '\(password)', \(compressionLevel))
-        """
-
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/Library/Frameworks/Python.framework/Versions/3.9/bin/python3")
-        process.arguments = ["-c", pythonScript]
-
-        let errorPipe = Pipe()
-        process.standardError = errorPipe
-
-        do {
-            try process.run()
-            process.waitUntilExit()
-
-            if process.terminationStatus != 0 {
-                let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
-                let errorMessage = String(data: errorData, encoding: .utf8) ?? "Unknown error"
-                print("ZIP error: \(errorMessage)")
-                throw ZipError.compressionFailed
-            }
-        } catch {
+        guard result == ZIP_OK else {
+            print("ZIP error: create_password_zip returned \(result)")
             throw ZipError.compressionFailed
         }
     }
