@@ -84,8 +84,8 @@ final class APIClient {
 
     /// V1: send() - send single .trc file to server
     private func sendTraceFile(_ trcURL: URL) async -> Bool {
-        guard let serviceHost = configuration.serviceHost,
-              !serviceHost.isEmpty else {
+        let serviceHost = configuration.serviceHost
+        guard !serviceHost.isEmpty else {
             logger.warning("⚠️ ServiceHost not configured - .trc files will be cached locally")
             return false
         }
@@ -98,6 +98,21 @@ final class APIClient {
 
         let base64Content = fileData.base64EncodedString()
         let recordDate = ZipEncryption.recordDate(from: trcURL)
+
+        // DIAGNOSTIC: RecordDate extraction
+        let trcFilename = trcURL.deletingPathExtension().lastPathComponent
+        print("╔══════════════════════════════════════════════════════════")
+        print("║ DIAGNOSTIC: API Payload Construction")
+        print("╠══════════════════════════════════════════════════════════")
+        print("║ .trc filename: \(trcURL.lastPathComponent)")
+        print("║ Ticks from filename: \(trcFilename)")
+        print("║ RecordDate (Date object): \(recordDate)")
+        print("║ .trc file size: \(fileData.count) bytes")
+        print("║ Base64 content length: \(base64Content.count) chars")
+        print("║ UserPath: \(SystemInfo.userPath)")
+        print("║ Token (first 8): \(configuration.serviceKey?.prefix(8) ?? "nil")...")
+        print("║ CompanyId: \(Self.decodeCompanyId(from: configuration.serviceKey) ?? "decode failed")")
+        print("╚══════════════════════════════════════════════════════════")
 
         // V1 API payload format
         let payload = APIPayload(
@@ -156,11 +171,32 @@ final class APIClient {
 
         request.httpBody = try encoder.encode(payload)
 
-        // Debug: Log the actual JSON being sent
-        if let jsonString = String(data: request.httpBody!, encoding: .utf8) {
-            print("📤 Request JSON: \(jsonString.prefix(500))")
+        // DIAGNOSTIC: Full API request JSON
+        if let jsonData = request.httpBody {
+            print("╔══════════════════════════════════════════════════════════")
+            print("║ DIAGNOSTIC: Final HTTP Request JSON")
+            print("╠══════════════════════════════════════════════════════════")
+            if let jsonObj = try? JSONSerialization.jsonObject(
+                with: jsonData
+            ) as? [String: Any] {
+                for (key, value) in jsonObj {
+                    if key == "Content" {
+                        let contentStr = value as? String ?? ""
+                        print("║ \(key): [\(contentStr.count) chars base64]")
+                    } else {
+                        print("║ \(key): \(value)")
+                    }
+                }
+            }
+            print("║ RecordDate raw: \(payload.recordDate)")
+            print("╚══════════════════════════════════════════════════════════")
+
+            // Dump full payload to file for debugging
+            let dumpPath = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+                .appendingPathComponent("flexytime/last_request.json")
+            try? jsonData.write(to: dumpPath)
+            print("📋 Full payload saved to: \(dumpPath.path)")
         }
-        print("📤 RecordDate: \(payload.recordDate)")
 
         let (data, response) = try await session.data(for: request)
 
@@ -178,6 +214,26 @@ final class APIClient {
 
         let decoder = JSONDecoder()
         return try decoder.decode(APIResponse.self, from: data)
+    }
+
+    /// Decode backend GuidEncoder token to CompanyId GUID
+    private static func decodeCompanyId(from token: String?) -> String? {
+        guard var base64 = token else { return nil }
+        base64 = base64.replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+        // Add padding
+        let remainder = base64.count % 4
+        if remainder > 0 { base64 += String(repeating: "=", count: 4 - remainder) }
+        guard let data = Data(base64Encoded: base64), data.count == 16 else { return nil }
+        let bytes = [UInt8](data)
+        return String(
+            format: "%02X%02X%02X%02X-%02X%02X-%02X%02X-%02X%02X-%02X%02X%02X%02X%02X%02X",
+            bytes[3], bytes[2], bytes[1], bytes[0],
+            bytes[5], bytes[4],
+            bytes[7], bytes[6],
+            bytes[8], bytes[9],
+            bytes[10], bytes[11], bytes[12], bytes[13], bytes[14], bytes[15]
+        )
     }
 }
 

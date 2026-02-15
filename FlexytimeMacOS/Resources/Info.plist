@@ -32,7 +32,13 @@
 	<string>Copyright © 2024 FlexyTime. All rights reserved.</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>Flexytime needs permission to read browser URLs for activity tracking.</string>
 	<!-- TODO: Production'a geçerken kaldır - sadece development için HTTP izni -->
+	<key>ServiceHost</key>
+	<string>test.api.flexytime.com</string>
+	<key>ServiceVersion</key>
+	<string>2.0.0</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>

@@ -11,6 +11,7 @@ final class WindowTracker {
         let appName: String
         let windowTitle: String
         let bundleIdentifier: String?
+        var url: String?
         let timestamp: Date
 
         static func == (lhs: WindowInfo, rhs: WindowInfo) -> Bool {
@@ -41,6 +42,7 @@ final class WindowTracker {
             appName: appName,
             windowTitle: windowTitle,
             bundleIdentifier: bundleId,
+            url: nil,
             timestamp: Date()
         )
 

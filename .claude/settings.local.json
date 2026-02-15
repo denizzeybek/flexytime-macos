@@ -5,7 +5,19 @@
       "Bash(chmod:*)",
       "Bash(find:*)",
       "Bash(xcodebuild:*)",
-      "Bash(./scripts/create-dmg.sh:*)"
+      "Bash(./scripts/create-dmg.sh:*)",
+      "Read(//opt/**)",
+      "Read(//Users/denizzeybek/Documents/FLEXYTIME/executive/**)",
+      "Bash(ruby -e:*)",
+      "Read(//Users/denizzeybek/Library/Application/**)",
+      "Read(//Users/denizzeybek/Library/Application Support/flexytime/config/flexytime/**)",
+      "Read(//Users/denizzeybek/Library/Developer/Xcode/DerivedData/FlexytimeMacOS-axocqeummelxvgfcgotqpodhxgsz/Build/Products/Debug/Flexytime.app/Contents/MacOS/**)",
+      "Bash(tccutil reset:*)",
+      "Bash(gh api:*)",
+      "Bash(gh search code:*)",
+      "Bash(export PATH=\"/opt/homebrew/bin:/usr/local/bin:$PATH\")",
+      "Bash(/usr/local/bin/gh api \"repos/lwouis/alt-tab-macos/git/trees/master?recursive=1\" --jq '.tree[].path')",
+      "Bash(/Users/denizzeybek/Documents/FLEXYTIME/flexy-mac-v2/scripts/clean-install.sh)"
     ],
     "additionalDirectories": [
       "/Users/denizzeybek/Documents/FLEXYTIME/flexy-mac-v2/.claude/commands"

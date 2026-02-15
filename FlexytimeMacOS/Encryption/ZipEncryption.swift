@@ -27,12 +27,7 @@ final class ZipEncryption {
 
     /// Creates a password-protected ZIP file (V1 compatible)
     /// Uses pyminizip via Python for 100% V1 compatibility
-    /// - Parameters:
-    ///   - inputPath: Path to file to compress
-    ///   - outputPath: Path for output ZIP file
-    ///   - filenameInZip: Name of file inside ZIP archive (not used - pyminizip uses original filename)
-    ///   - password: Encryption password
-    ///   - compressionLevel: 0-9 (default 5 for V1 compatibility)
+    /// Entry name inside ZIP = filenameInZip (achieved via temp directory + symlink)
     static func createPasswordZip(
         inputPath: String,
         outputPath: String,
@@ -40,14 +35,25 @@ final class ZipEncryption {
         password: String,
         compressionLevel: Int32 = 5
     ) throws {
-        // Use pyminizip via Python for V1 compatibility
+        // Create a temp directory and symlink the file with the desired entry name
+        // This ensures pyminizip uses filenameInZip as the entry name, not the full path
+        let tempDir = NSTemporaryDirectory() + "flexytime_zip_\(UUID().uuidString)"
+        let tempFilePath = "\(tempDir)/\(filenameInZip)"
+
+        try FileManager.default.createDirectory(atPath: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(atPath: tempDir) }
+
+        // Copy the file with the desired name
+        try FileManager.default.copyItem(atPath: inputPath, toPath: tempFilePath)
+
+        // Use pyminizip with the temp file so entry name = filenameInZip
         let pythonScript = """
-        import pyminizip
-        pyminizip.compress('\(inputPath)', None, '\(outputPath)', '\(password)', \(compressionLevel))
+        import pyminizip, os
+        os.chdir('\(tempDir)')
+        pyminizip.compress('\(filenameInZip)', None, '\(outputPath)', '\(password)', \(compressionLevel))
         """
 
         let process = Process()
-        // Use python3 from PATH (pyminizip may not be in /usr/bin/python3)
         process.executableURL = URL(fileURLWithPath: "/Library/Frameworks/Python.framework/Versions/3.9/bin/python3")
         process.arguments = ["-c", pythonScript]
 
@@ -89,9 +95,26 @@ final class ZipEncryption {
         let jsonData = try encodeUsage(usage)
         try jsonData.write(to: URL(fileURLWithPath: jsonPath))
 
-        // Step 2: Compress with internal password
+        // DIAGNOSTIC: Raw JSON inside .trc
+        print("╔══════════════════════════════════════════════════════════")
+        print("║ DIAGNOSTIC: PerformUsage JSON (inside .trc)")
+        print("╠══════════════════════════════════════════════════════════")
+        if let jsonString = String(data: jsonData, encoding: .utf8) {
+            print(jsonString)
+        }
+        print("╚══════════════════════════════════════════════════════════")
+
+        // Step 2: Calculate SHA256 of JSON — backend uses this as checksum
+        // Backend validates: outer_zip_entry_name == SHA256(json_content)
         let jsonHash = sha256Hash(of: jsonData)
-        let internalZipPath = "\(cacheDir)/\(jsonHash)"
+        let internalZipPath = "\(cacheDir)/temp_inner.zip"
+
+        // DIAGNOSTIC: ZIP Step 2 details
+        print("🔐 ZIP Step 2 (Inner ZIP):")
+        print("  Input file: \(jsonPath)")
+        print("  JSON size: \(jsonData.count) bytes")
+        print("  JSON SHA256 (checksum for outer entry): \(jsonHash)")
+        print("  Password (first 8): \(config.internalPassword.prefix(8))...")
 
         try createPasswordZip(
             inputPath: jsonPath,
@@ -101,13 +124,25 @@ final class ZipEncryption {
             compressionLevel: 5
         )
 
+        // DIAGNOSTIC: Inner ZIP file info
+        let innerZipSize = (try? Data(contentsOf: URL(fileURLWithPath: internalZipPath)))?.count ?? 0
+        print("  Inner ZIP size: \(innerZipSize) bytes")
+
         // Delete temp JSON
         try? FileManager.default.removeItem(atPath: jsonPath)
 
-        // Step 3: Compress with external password
+        // Step 3: Compress with external password, entry name = JSON SHA256 hash
         let ticks = ticksSinceEpoch()
         let trcFilename = "\(ticks).trc"
         let trcPath = "\(cacheDir)/\(trcFilename)"
+
+        // DIAGNOSTIC: ZIP Step 3 details
+        print("🔐 ZIP Step 3 (Outer ZIP):")
+        print("  Input file: \(internalZipPath)")
+        print("  Output file: \(trcPath)")
+        print("  Entry name in outer ZIP (JSON checksum): \(jsonHash)")
+        print("  Ticks value: \(ticks)")
+        print("  Password (first 8): \(config.externalPassword.prefix(8))...")
 
         try createPasswordZip(
             inputPath: internalZipPath,
@@ -119,6 +154,10 @@ final class ZipEncryption {
 
         // Delete intermediate ZIP
         try? FileManager.default.removeItem(atPath: internalZipPath)
+
+        // DIAGNOSTIC: Final .trc file info
+        let trcSize = (try? Data(contentsOf: URL(fileURLWithPath: trcPath)))?.count ?? 0
+        print("  Final .trc size: \(trcSize) bytes")
 
         return URL(fileURLWithPath: trcPath)
     }
@@ -132,7 +171,7 @@ final class ZipEncryption {
         encoder.dateEncodingStrategy = .custom { date, encoder in
             var container = encoder.singleValueContainer()
             let formatter = ISO8601DateFormatter()
-            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            formatter.formatOptions = [.withInternetDateTime]
             try container.encode(formatter.string(from: date))
         }
         return try encoder.encode(usage)

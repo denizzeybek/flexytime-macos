@@ -23,12 +23,34 @@ struct ViewEvent: Codable {
     let title: String
     let time: Date
     var expireTime: Date
+    let properties: [String: String]
 
     enum CodingKeys: String, CodingKey {
         case processName = "ProcessName"
         case title = "Title"
         case time = "Time"
         case expireTime = "ExpireTime"
+        case properties = "Properties"
+    }
+
+    /// Maps macOS app names to backend-expected process names
+    /// Backend PerformJob.cs TryCreateWebAllocation() uses these exact strings
+    private static let backendProcessNameMap: [String: String] = [
+        "Google Chrome": "chrome",
+        "Microsoft Edge": "msedge",
+        "Opera": "opera",
+        "Safari": "safari"
+    ]
+
+    /// Custom encode: maps ProcessName to backend format
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        let mapped = Self.backendProcessNameMap[processName] ?? processName
+        try container.encode(mapped, forKey: .processName)
+        try container.encode(title, forKey: .title)
+        try container.encode(time, forKey: .time)
+        try container.encode(expireTime, forKey: .expireTime)
+        try container.encode(properties, forKey: .properties)
     }
 
     /// Duration in seconds
@@ -55,6 +77,7 @@ struct UsagePayload: Codable {
     let dataType: UsageDataType
     let recordDate: Date
     let views: [ViewEvent]?
+    let calendar: String?
 
     enum CodingKeys: String, CodingKey {
         case deviceType = "DeviceType"
@@ -65,6 +88,21 @@ struct UsagePayload: Codable {
         case dataType = "DataType"
         case recordDate = "RecordDate"
         case views = "Views"
+        case calendar = "Calendar"
+    }
+
+    /// Custom encode to always include Calendar as null (Swift skips nil by default)
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(deviceType, forKey: .deviceType)
+        try container.encode(version, forKey: .version)
+        try container.encode(username, forKey: .username)
+        try container.encode(machineName, forKey: .machineName)
+        try container.encode(ipAddress, forKey: .ipAddress)
+        try container.encode(dataType, forKey: .dataType)
+        try container.encode(recordDate, forKey: .recordDate)
+        try container.encode(views, forKey: .views)
+        try container.encodeNil(forKey: .calendar)
     }
 }
 

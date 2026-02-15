@@ -10,6 +10,7 @@ final class ActivityCollector {
 
     private let windowTracker = WindowTracker()
     private let idleDetector = IdleDetector()
+    private let urlExtractor = BrowserURLExtractor()
     private let apiClient: APIClient
     private let configuration: Configuration
     private let logger = Logger.services
@@ -18,6 +19,7 @@ final class ActivityCollector {
     private var timerCounter = 0
     private var views: [ViewEvent] = []
     private var activeView: ViewEvent?
+    private var currentURL: String?
     private var isRunning = false
 
     // MARK: - Initialization
@@ -47,7 +49,7 @@ final class ActivityCollector {
             logger.info("MachineName: \(SystemInfo.machineName)")
             logger.info("IP Address: \(SystemInfo.ipAddress)")
             logger.info("UserPath: \(SystemInfo.userPath)")
-            logger.info("ServiceHost: \(self.configuration.serviceHost ?? "NOT SET")")
+            logger.info("ServiceHost: \(self.configuration.serviceHost)")
             logger.info("ServiceKey: \(self.configuration.serviceKey?.prefix(8) ?? "NOT SET")...")
             logger.info("===========================")
         }
@@ -96,34 +98,46 @@ final class ActivityCollector {
         }
     }
 
-    /// V1: activity_event() - creates new view only on ProcessName change
+    /// V1: activity_event() - creates new view on ProcessName or URL change
     private func activityEvent() {
-        guard let window = windowTracker.getCurrentWindow() else {
+        guard var window = windowTracker.getCurrentWindow() else {
             logger.debug("Unable to fetch window, trying again on next poll")
             return
         }
 
         let now = Date()
 
+        // Extract URL only for browser apps (performance: skip for non-browsers)
+        let newURL = urlExtractor.extractURL(appName: window.appName)
+        window.url = newURL
+
         // Debug: Log every window poll
         if configuration.isDebugMode && timerCounter % 5 == 0 {
-            logger.info("📍 Current: \(window.appName) | \(window.windowTitle.prefix(50))")
+            let urlSnippet = newURL.map { String($0.prefix(60)) } ?? "n/a"
+            logger.info("📍 \(window.appName) | \(window.windowTitle.prefix(40)) | \(urlSnippet)")
         }
 
         if activeView == nil {
-            // V1: If no active view, create one only if user is active
             let seconds = idleDetector.secondsSinceLastInput()
             logger.info("activeView is None - seconds: \(Int(seconds))")
             if seconds < configuration.idleThreshold {
+                currentURL = newURL
                 createView(window: window)
             }
         } else if activeView?.processName != window.appName {
-            // V1: Only create new view when ProcessName changes
+            // V1: Create new view when ProcessName changes
             logger.info("🔄 App changed: \(self.activeView?.processName ?? "") → \(window.appName)")
             closeActiveView(at: now)
+            currentURL = newURL
+            createView(window: window)
+        } else if urlExtractor.isBrowser(appName: window.appName) && newURL != currentURL {
+            // NEW: Create new view when URL changes in same browser (V1 Windows behavior)
+            logger.info("🌐 URL changed: \(self.currentURL?.prefix(40) ?? "nil") → \(newURL?.prefix(40) ?? "nil")")
+            closeActiveView(at: now)
+            currentURL = newURL
             createView(window: window)
         }
-        // V1: Title change does NOT create new event
+        // Title change alone does NOT create new event
     }
 
     /// V1: on_input_timed_event() - AFK check every 15s
@@ -137,6 +151,7 @@ final class ActivityCollector {
         logger.info("AFK")
         let lastInput = Date().addingTimeInterval(-seconds)
         closeActiveView(at: lastInput)
+        currentURL = nil
     }
 
     /// V1: on_window_timed_event() - sync every 60s
@@ -152,18 +167,12 @@ final class ActivityCollector {
         }
 
         // Debug: Log all views being synced
-        print("═══════════════════════════════════════════════════════")
-        print("📤 SYNCING \(viewsToSync.count) VIEW(S) @ \(Date())")
-        print("═══════════════════════════════════════════════════════")
+        print("═══ 📤 SYNCING \(viewsToSync.count) VIEW(S) @ \(Date()) ═══")
         for (index, view) in viewsToSync.enumerated() {
-            let duration = view.expireTime.timeIntervalSince(view.time)
-            print("  [\(index + 1)] 🖥️ App: \(view.processName)")
-            print("       📄 Title: \(view.title)")
-            print("       ⏱️ Duration: \(Int(duration))s")
-            print("       🕐 Time: \(view.time) → \(view.expireTime)")
-            print("  ---------------------------------------------------")
+            let dur = Int(view.expireTime.timeIntervalSince(view.time))
+            let url = view.properties["URL"] ?? "n/a"
+            print("  [\(index + 1)] \(view.processName) | \(dur)s | URL: \(url)")
         }
-        print("═══════════════════════════════════════════════════════")
 
         let usage = createUsagePayload(views: viewsToSync, dataType: .input)
 
@@ -185,16 +194,22 @@ final class ActivityCollector {
 
     // MARK: - Helper Methods
 
-    /// V1: create_view()
+    /// V1: create_view() — includes URL in Properties for browser apps
     private func createView(window: WindowTracker.WindowInfo) {
         let now = Date()
         let expireTime = now.addingTimeInterval(configuration.idleThreshold)
+
+        var properties: [String: String] = [:]
+        if let url = window.url {
+            properties["URL"] = url
+        }
 
         activeView = ViewEvent(
             processName: window.appName,
             title: window.windowTitle,
             time: now,
-            expireTime: expireTime
+            expireTime: expireTime,
+            properties: properties
         )
     }
 
@@ -226,7 +241,8 @@ final class ActivityCollector {
             ipAddress: SystemInfo.ipAddress,
             dataType: dataType,
             recordDate: Date(),
-            views: views
+            views: views,
+            calendar: nil
         )
     }
 }

@@ -59,14 +59,9 @@ final class Configuration {
 
     // MARK: - Configurable Properties
 
-    /// Server host (loaded from config file)
-    var serviceHost: String? {
-        get { loadConfigValue(key: "ServiceHost") }
-        set {
-            if let value = newValue {
-                saveConfigValue(key: "ServiceHost", value: value)
-            }
-        }
+    /// Server host (set by developer in Info.plist before build)
+    var serviceHost: String {
+        Bundle.main.object(forInfoDictionaryKey: "ServiceHost") as? String ?? ""
     }
 
     /// API key/token (loaded from config file)
@@ -79,10 +74,9 @@ final class Configuration {
         }
     }
 
-    /// Service version
+    /// Service version (set by developer in Info.plist before build)
     var serviceVersion: String {
-        get { loadConfigValue(key: "ServiceVersion") ?? Defaults.serviceVersion }
-        set { saveConfigValue(key: "ServiceVersion", value: newValue) }
+        Bundle.main.object(forInfoDictionaryKey: "ServiceVersion") as? String ?? "1.0.0"
     }
 
     /// App version for API requests
@@ -176,16 +170,6 @@ final class Configuration {
             atPath: Paths.configDir,
             withIntermediateDirectories: true
         )
-    }
-}
-
-// MARK: - Defaults
-
-private extension Configuration {
-    enum Defaults {
-        static let serviceHost = "test.flexytime.com"
-        static let serviceKey = ""
-        static let serviceVersion = "2.0.0"
     }
 }
 

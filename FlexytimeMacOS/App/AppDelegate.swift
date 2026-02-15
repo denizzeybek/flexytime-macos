@@ -29,22 +29,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         logger.info("Flexytime started")
 
-        // Check if setup is needed (ServiceKey)
         if needsSetup {
             logger.info("Setup required - showing setup window")
             showSetupWindow()
             return
         }
 
-        // Check if permissions are needed
-        if needsPermissions {
-            logger.info("Permissions required - showing permissions window")
-            showPermissionsWindow()
-            return
+        // Check permissions on background thread (screen recording check uses semaphore)
+        DispatchQueue.global(qos: .userInitiated).async {
+            let permsNeeded = self.needsPermissions
+            DispatchQueue.main.async {
+                if permsNeeded {
+                    self.logger.info("Permissions required - showing permissions window")
+                    self.showPermissionsWindow()
+                } else {
+                    self.startNormalOperation()
+                }
+            }
         }
-
-        // Normal startup
-        startNormalOperation()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -55,15 +57,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Setup
 
     func showSetupWindow() {
-        let setupView = SetupView(onComplete: { [weak self] in
-            self?.setupWindow?.close()
-            self?.setupWindow = nil
-            // After setup, check permissions
-            if self?.needsPermissions == true {
-                self?.showPermissionsWindow()
-            } else {
-                self?.startNormalOperation()
-            }
+        let setupView = SetupView(onComplete: {
+            self.setupWindow?.close()
+            self.setupWindow = nil
+            self.relaunchApp()
         })
 
         let window = NSWindow(
@@ -84,10 +81,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func showPermissionsWindow() {
-        let permissionsView = PermissionsView(onAllGranted: { [weak self] in
-            self?.permissionsWindow?.close()
-            self?.permissionsWindow = nil
-            self?.startNormalOperation()
+        let permissionsView = PermissionsView(onAllGranted: {
+            self.permissionsWindow?.close()
+            self.permissionsWindow = nil
+            self.relaunchApp()
         })
 
         let window = NSWindow(
@@ -137,5 +134,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func stopServices() {
         activityCollector?.stop()
         logger.info("Services stopped")
+    }
+
+    /// Relaunch the app (used after setup/permissions to get a clean start)
+    private func relaunchApp() {
+        let url = Bundle.main.bundleURL
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+        task.arguments = ["-n", url.path]
+        try? task.run()
+        NSApp.terminate(nil)
     }
 }

@@ -27,6 +27,7 @@
 		A1000044239F0001 /* PermissionsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000045239F0001 /* PermissionsManager.swift */; };
 		A1000046239F0001 /* SetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000047239F0001 /* SetupView.swift */; };
 		A1000048239F0001 /* PermissionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000049239F0001 /* PermissionsView.swift */; };
+		A1000050239F0001 /* BrowserURLExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000051239F0001 /* BrowserURLExtractor.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -55,6 +56,7 @@
 		A1000045239F0001 /* PermissionsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionsManager.swift; sourceTree = "<group>"; };
 		A1000047239F0001 /* SetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetupView.swift; sourceTree = "<group>"; };
 		A1000049239F0001 /* PermissionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionsView.swift; sourceTree = "<group>"; };
+		A1000051239F0001 /* BrowserURLExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserURLExtractor.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -121,6 +123,7 @@
 				A100000A239F0001 /* IdleDetector.swift */,
 				A100000C239F0001 /* ActivityCollector.swift */,
 				A100000E239F0001 /* APIClient.swift */,
+				A1000051239F0001 /* BrowserURLExtractor.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -306,6 +309,7 @@
 				A1000044239F0001 /* PermissionsManager.swift in Sources */,
 				A1000046239F0001 /* SetupView.swift in Sources */,
 				A1000048239F0001 /* PermissionsView.swift in Sources */,
+				A1000050239F0001 /* BrowserURLExtractor.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

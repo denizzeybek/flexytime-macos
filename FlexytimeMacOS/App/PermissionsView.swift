@@ -174,11 +174,10 @@ class PermissionChecker: ObservableObject {
     }
 
     func startMonitoring() {
-        // Initial check
         checkPermissions()
 
-        // Poll every 1 second for changes
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+        // Poll every 2 seconds — screen recording check uses semaphore so run on background
+        timer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
             self?.checkPermissions()
         }
     }
@@ -189,11 +188,13 @@ class PermissionChecker: ObservableObject {
     }
 
     private func checkPermissions() {
-        DispatchQueue.main.async { [weak self] in
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             let accessibility = PermissionsManager.hasAccessibilityPermission
             let screenRec = PermissionsManager.hasScreenRecordingPermission
-            self?.hasAccessibility = accessibility
-            self?.hasScreenRecording = screenRec
+            DispatchQueue.main.async {
+                self?.hasAccessibility = accessibility
+                self?.hasScreenRecording = screenRec
+            }
         }
     }
 }

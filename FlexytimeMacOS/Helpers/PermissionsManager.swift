@@ -1,6 +1,7 @@
 import Cocoa
 import ApplicationServices
 import CoreGraphics
+import ScreenCaptureKit
 import os.log
 
 /// V1-compatible permissions manager
@@ -10,22 +11,56 @@ enum PermissionsManager {
     private static let logger = Logger(subsystem: "com.flexytime.macos", category: "Permissions")
 
     /// Check if accessibility permissions are granted
-    /// V1: AXIsProcessTrusted()
+    /// Uses AXIsProcessTrustedWithOptions without prompt (like AltTab)
     static var hasAccessibilityPermission: Bool {
-        let result = AXIsProcessTrusted()
-        logger.info("AXIsProcessTrusted returned: \(result)")
+        let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: false]
+        let result = AXIsProcessTrustedWithOptions(options as CFDictionary)
+        logger.info("AXIsProcessTrustedWithOptions returned: \(result)")
         return result
     }
 
     /// Check if screen recording permissions are granted
-    /// Required for kCGWindowName access since macOS 10.15+
+    /// CGPreflightScreenCaptureAccess is unreliable (not updated during app lifetime)
+    /// AltTab workaround: use SCShareableContent on macOS 12.3+, CGDisplayStream on older
     static var hasScreenRecordingPermission: Bool {
-        if #available(macOS 10.15, *) {
-            let preflight = CGPreflightScreenCaptureAccess()
-            logger.info("CGPreflightScreenCaptureAccess returned: \(preflight)")
-            return preflight
+        if #available(macOS 12.3, *) {
+            return checkScreenRecordingWithSCShareableContent()
+        } else if #available(macOS 10.15, *) {
+            return checkScreenRecordingWithDisplayStream()
         }
         return true
+    }
+
+    @available(macOS 12.3, *)
+    private static func checkScreenRecordingWithSCShareableContent() -> Bool {
+        let semaphore = DispatchSemaphore(value: 0)
+        var result = false
+        SCShareableContent.getExcludingDesktopWindows(true, onScreenWindowsOnly: false) { content, error in
+            result = (error == nil && content != nil)
+            semaphore.signal()
+        }
+        let timeout = semaphore.wait(timeout: .now() + 3)
+        if timeout == .timedOut {
+            logger.warning("SCShareableContent timed out after 3s")
+            return false
+        }
+        logger.info("SCShareableContent check returned: \(result)")
+        return result
+    }
+
+    @available(macOS 10.15, *)
+    private static func checkScreenRecordingWithDisplayStream() -> Bool {
+        let displayStream = CGDisplayStream(
+            dispatchQueueDisplay: CGMainDisplayID(),
+            outputWidth: 1,
+            outputHeight: 1,
+            pixelFormat: Int32(kCVPixelFormatType_32BGRA),
+            properties: nil,
+            queue: .global()
+        ) { _, _, _, _ in }
+        let granted = displayStream != nil
+        logger.info("CGDisplayStream check returned: \(granted)")
+        return granted
     }
 
     /// Request accessibility permissions with alert
@@ -147,13 +182,13 @@ enum PermissionsManager {
         }
     }
 
-    /// Request screen capture - always opens System Settings
-    /// CGRequestScreenCaptureAccess is unreliable for unsigned apps
+    /// Request screen capture - triggers system to add app to Screen Recording list
     static func requestOrOpenScreenRecording() {
         if #available(macOS 10.15, *) {
-            logger.info("requestOrOpenScreenRecording - opening System Settings directly")
-            // CGRequestScreenCaptureAccess doesn't work reliably for unsigned apps
-            // Just open System Settings directly - user will add app manually
+            logger.info("requestOrOpenScreenRecording - calling CGRequestScreenCaptureAccess")
+            // This registers the app in the Screen Recording list
+            CGRequestScreenCaptureAccess()
+            // Also open System Settings so user can toggle it on
             openScreenRecordingSettings()
         }
     }

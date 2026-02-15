@@ -29,10 +29,11 @@ This guide explains how to create a properly signed and notarized Flexytime app 
 1. After notarization succeeds, click **Export**
 2. **IMPORTANT:** Select this path as the export location:
    ```
-   /Users/denizzeybek/Documents/FLEXYTIME/flexy-mac-v2/build/Flexytime/
+   /Users/denizzeybek/Documents/FLEXYTIME/flexy-mac-v2/build/
    ```
+   Xcode will automatically create a `Flexytime/` subfolder inside `build/`.
 3. Click **Export**
-4. The `Flexytime.app` will be saved to that folder
+4. The app will be at `build/Flexytime/Flexytime.app`
 
 ## Step 4: Create DMG
 
@@ -70,7 +71,7 @@ Expected output should include:
 |------|--------|--------|
 | 1 | Product > Archive | Creates .xcarchive |
 | 2 | Distribute > Developer ID > Upload | Notarizes with Apple |
-| 3 | Export to `build/Flexytime/` | Signed .app file |
+| 3 | Export to `build/` | Signed .app file |
 | 4 | Run `create-dmg.sh` | Distribution-ready .dmg |
 
 ## Notes
