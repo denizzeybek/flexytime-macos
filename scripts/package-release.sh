@@ -74,7 +74,7 @@ echo "----------------------------------------"
 ARCHIVE_PATH="${BUILD_DIR}/${APP_NAME}.xcarchive"
 APP_PATH="${ARCHIVE_PATH}/Products/Applications/${APP_NAME}.app"
 VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "${APP_PATH}/Contents/Info.plist")
-DMG_PATH="${BUILD_DIR}/${APP_NAME}-${VERSION}-universal.dmg"
+DMG_PATH="${BUILD_DIR}/${APP_NAME}.dmg"
 
 # Step 2: Code Signing (optional)
 echo ""
@@ -119,6 +119,14 @@ fi
 echo ""
 echo -e "${BLUE}Step 3/4: Creating DMG${NC}"
 echo "----------------------------------------"
+
+# Copy signed app from archive to the path create-dmg.sh expects
+EXPORT_DIR="${BUILD_DIR}/${APP_NAME}"
+mkdir -p "${EXPORT_DIR}"
+rm -rf "${EXPORT_DIR}/${APP_NAME}.app"
+cp -R "${APP_PATH}" "${EXPORT_DIR}/"
+echo -e "${YELLOW}Copied signed app to ${EXPORT_DIR}/${NC}"
+
 "${SCRIPTS_DIR}/create-dmg.sh"
 
 # Sign DMG if signing is enabled

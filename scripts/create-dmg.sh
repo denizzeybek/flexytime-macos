@@ -28,7 +28,7 @@ fi
 
 DMG_NAME="${APP_NAME}.dmg"
 DMG_PATH="${BUILD_DIR}/${DMG_NAME}"
-VOLUME_NAME="${APP_NAME}"
+VOLUME_NAME="${APP_NAME} Installer"
 
 echo -e "${GREEN}========================================${NC}"
 echo -e "${GREEN}  Flexytime DMG Creator${NC}"

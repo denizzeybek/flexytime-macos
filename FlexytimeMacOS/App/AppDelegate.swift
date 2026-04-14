@@ -1,6 +1,5 @@
 import Cocoa
 import SwiftUI
-import os.log
 
 /// Application delegate handling app lifecycle and service management
 /// V1-compatible startup sequence from main.py
@@ -11,7 +10,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var activityCollector: ActivityCollector?
     private var setupWindow: NSWindow?
     private var permissionsWindow: NSWindow?
-    private let logger = Logger.app
 
     /// Check if setup is needed (no ServiceKey configured)
     var needsSetup: Bool {
@@ -19,18 +17,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return config.serviceKey == nil || config.serviceKey?.isEmpty == true
     }
 
-    /// Check if permissions are missing
+    /// Check if permissions onboarding is needed
+    /// Always checks actual permission status — binary updates invalidate old permissions
     var needsPermissions: Bool {
-        !PermissionsManager.hasAccessibilityPermission || !PermissionsManager.hasScreenRecordingPermission
+        return !PermissionsManager.hasAccessibilityPermission
     }
 
     // MARK: - Lifecycle
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        logger.info("Flexytime started")
+        FlexLog.info("Flexytime started", category: .app)
+
+        // Reset TCC permissions if binary version changed (new build invalidates old permissions)
+        PermissionsManager.resetPermissionsIfVersionChanged()
 
         if needsSetup {
-            logger.info("Setup required - showing setup window")
+            FlexLog.info("Setup required - showing setup window", category: .app)
             showSetupWindow()
             return
         }
@@ -40,7 +42,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let permsNeeded = self.needsPermissions
             DispatchQueue.main.async {
                 if permsNeeded {
-                    self.logger.info("Permissions required - showing permissions window")
+                    FlexLog.info("Permissions required - showing permissions window", category: .app)
                     self.showPermissionsWindow()
                 } else {
                     self.startNormalOperation()
@@ -50,7 +52,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        logger.info("Flexytime shutting down")
+        FlexLog.info("Flexytime shutting down", category: .app)
         stopServices()
     }
 
@@ -74,21 +76,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.center()
         window.makeKeyAndOrderFront(nil)
 
-        // Bring app to foreground
         NSApp.activate(ignoringOtherApps: true)
-
         setupWindow = window
     }
 
     func showPermissionsWindow() {
         let permissionsView = PermissionsView(onAllGranted: {
+            UserDefaults.standard.set(true, forKey: "onboardingCompleted")
             self.permissionsWindow?.close()
             self.permissionsWindow = nil
             self.relaunchApp()
         })
 
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 480, height: 380),
+            contentRect: NSRect(x: 0, y: 0, width: 480, height: 400),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
@@ -98,29 +99,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.center()
         window.makeKeyAndOrderFront(nil)
 
-        // Bring app to foreground
         NSApp.activate(ignoringOtherApps: true)
-
         permissionsWindow = window
     }
 
     // MARK: - Normal Operation
 
     private func startNormalOperation() {
-        logger.info("Starting normal operation")
+        let hasAX = PermissionsManager.hasAccessibilityPermission
+        let hasSR = PermissionsManager.hasScreenRecordingPermission
+        FlexLog.info("Permissions: Accessibility=\(hasAX) ScreenRecording=\(hasSR)", category: .permissions)
 
-        // Log permission status
-        let hasAccessibility = PermissionsManager.hasAccessibilityPermission
-        let hasScreenRecording = PermissionsManager.hasScreenRecordingPermission
-        logger.info("Permissions - Accessibility: \(hasAccessibility), Screen Recording: \(hasScreenRecording)")
-
-        // V1: Add to login items if not already added
         if !LoginItemsManager.isLoginItemEnabled {
-            logger.info("Adding application to login items")
+            FlexLog.info("Adding to login items", category: .app)
             LoginItemsManager.ensureLoginItemEnabled()
         }
 
-        // Start services
         setupServices()
     }
 
@@ -128,12 +122,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let config = Configuration.shared
         activityCollector = ActivityCollector(configuration: config)
         activityCollector?.start()
-        logger.info("Services initialized")
     }
 
     private func stopServices() {
         activityCollector?.stop()
-        logger.info("Services stopped")
     }
 
     /// Relaunch the app (used after setup/permissions to get a clean start)

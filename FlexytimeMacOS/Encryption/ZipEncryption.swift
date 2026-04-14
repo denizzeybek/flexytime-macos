@@ -43,15 +43,12 @@ final class ZipEncryption {
         )
 
         guard result == ZIP_OK else {
-            print("ZIP error: create_password_zip returned \(result)")
+            FlexLog.error("ZIP compression failed (code \(result))", category: .network)
             throw ZipError.compressionFailed
         }
     }
 
     /// V1 compatible two-layer encryption process
-    /// 1. Save JSON to file
-    /// 2. Compress with internal password → SHA256 hash filename
-    /// 3. Compress again with external password → ticks.trc filename
     static func encryptUsage(
         _ usage: UsagePayload,
         config: Configuration,
@@ -68,26 +65,18 @@ final class ZipEncryption {
         let jsonData = try encodeUsage(usage)
         try jsonData.write(to: URL(fileURLWithPath: jsonPath))
 
-        // DIAGNOSTIC: Raw JSON inside .trc
-        print("╔══════════════════════════════════════════════════════════")
-        print("║ DIAGNOSTIC: PerformUsage JSON (inside .trc)")
-        print("╠══════════════════════════════════════════════════════════")
-        if let jsonString = String(data: jsonData, encoding: .utf8) {
-            print(jsonString)
-        }
-        print("╚══════════════════════════════════════════════════════════")
+        let viewCount = usage.views?.count ?? 0
+        let dataType = usage.dataType == .input ? "input" : "calendar"
+        FlexLog.info("ZIP: \(jsonData.count)B JSON, \(viewCount) views, type=\(dataType)", category: .network)
 
-        // Step 2: Calculate SHA256 of JSON — backend uses this as checksum
-        // Backend validates: outer_zip_entry_name == SHA256(json_content)
+        // Log raw JSON payload for debugging
+        if let jsonString = String(data: jsonData, encoding: .utf8) {
+            FlexLog.info("JSON PAYLOAD:\n\(jsonString)", category: .network)
+        }
+
+        // Step 2: Inner ZIP (password protected, entry = "usage.json")
         let jsonHash = sha256Hash(of: jsonData)
         let internalZipPath = "\(cacheDir)/temp_inner.zip"
-
-        // DIAGNOSTIC: ZIP Step 2 details
-        print("🔐 ZIP Step 2 (Inner ZIP):")
-        print("  Input file: \(jsonPath)")
-        print("  JSON size: \(jsonData.count) bytes")
-        print("  JSON SHA256 (checksum for outer entry): \(jsonHash)")
-        print("  Password (first 8): \(config.internalPassword.prefix(8))...")
 
         try createPasswordZip(
             inputPath: jsonPath,
@@ -97,25 +86,15 @@ final class ZipEncryption {
             compressionLevel: 5
         )
 
-        // DIAGNOSTIC: Inner ZIP file info
-        let innerZipSize = (try? Data(contentsOf: URL(fileURLWithPath: internalZipPath)))?.count ?? 0
-        print("  Inner ZIP size: \(innerZipSize) bytes")
+        let innerSize = (try? Data(contentsOf: URL(fileURLWithPath: internalZipPath)))?.count ?? 0
+        FlexLog.info("ZIP: inner=\(innerSize)B, hash=\(jsonHash.prefix(16))...", category: .network)
 
-        // Delete temp JSON
         try? FileManager.default.removeItem(atPath: jsonPath)
 
-        // Step 3: Compress with external password, entry name = JSON SHA256 hash
+        // Step 3: Outer ZIP (password protected, entry = SHA256 hash)
         let ticks = ticksSinceEpoch()
         let trcFilename = "\(ticks).trc"
         let trcPath = "\(cacheDir)/\(trcFilename)"
-
-        // DIAGNOSTIC: ZIP Step 3 details
-        print("🔐 ZIP Step 3 (Outer ZIP):")
-        print("  Input file: \(internalZipPath)")
-        print("  Output file: \(trcPath)")
-        print("  Entry name in outer ZIP (JSON checksum): \(jsonHash)")
-        print("  Ticks value: \(ticks)")
-        print("  Password (first 8): \(config.externalPassword.prefix(8))...")
 
         try createPasswordZip(
             inputPath: internalZipPath,
@@ -125,28 +104,21 @@ final class ZipEncryption {
             compressionLevel: 5
         )
 
-        // Delete intermediate ZIP
         try? FileManager.default.removeItem(atPath: internalZipPath)
 
-        // DIAGNOSTIC: Final .trc file info
         let trcSize = (try? Data(contentsOf: URL(fileURLWithPath: trcPath)))?.count ?? 0
-        print("  Final .trc size: \(trcSize) bytes")
+        FlexLog.info("ZIP: \(trcFilename) \(trcSize)B ready", category: .network)
 
         return URL(fileURLWithPath: trcPath)
     }
 
     // MARK: - Private Helpers
 
-    /// Encode usage to JSON with V1 compatible date format
+    /// Encode usage to JSON with ISO8601 date format
     private static func encodeUsage(_ usage: UsagePayload) throws -> Data {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        encoder.dateEncodingStrategy = .custom { date, encoder in
-            var container = encoder.singleValueContainer()
-            let formatter = ISO8601DateFormatter()
-            formatter.formatOptions = [.withInternetDateTime]
-            try container.encode(formatter.string(from: date))
-        }
+        encoder.dateEncodingStrategy = .iso8601
         return try encoder.encode(usage)
     }
 
@@ -158,21 +130,12 @@ final class ZipEncryption {
 
     /// Ticks since epoch (V1 compatible: seconds since year 1)
     private static func ticksSinceEpoch() -> Int {
-        // V1 calculates seconds from datetime(1,1,1) to now
-        // This is a very large number, we'll use Unix timestamp instead
-        // which is close enough for unique filenames
         let now = Date()
-        // V1 epoch: Jan 1, year 1 (but we use unix timestamp for simplicity)
-        // The actual V1 calculation:
-        // t0 = datetime(1, 1, 1)
-        // diff = (now - t0).total_seconds()
-        // For compatibility, let's calculate properly
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "UTC")!
         let components = DateComponents(year: 1, month: 1, day: 1)
         let epoch = calendar.date(from: components)!
-        let seconds = Int(now.timeIntervalSince(epoch))
-        return seconds
+        return Int(now.timeIntervalSince(epoch))
     }
 }
 

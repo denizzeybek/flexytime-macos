@@ -2,65 +2,90 @@ import Cocoa
 import ApplicationServices
 import CoreGraphics
 import ScreenCaptureKit
-import os.log
 
 /// V1-compatible permissions manager
 /// Matches macos.py ensure_permissions()
 enum PermissionsManager {
 
-    private static let logger = Logger(subsystem: "com.flexytime.macos", category: "Permissions")
+    // Logging via FlexLog with .permissions category
+
+    /// Dedicated queue for permission system calls (AltTab pattern)
+    private static let permissionsQueue = OperationQueue()
 
     /// Check if accessibility permissions are granted
-    /// Uses AXIsProcessTrustedWithOptions without prompt (like AltTab)
+    /// Uses AXIsProcessTrustedWithOptions without prompt (AltTab pattern)
     static var hasAccessibilityPermission: Bool {
-        let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: false]
+        let options = [kAXTrustedCheckOptionPrompt.takeRetainedValue() as String: false]
         let result = AXIsProcessTrustedWithOptions(options as CFDictionary)
-        logger.info("AXIsProcessTrustedWithOptions returned: \(result)")
         return result
     }
 
     /// Check if screen recording permissions are granted
     /// CGPreflightScreenCaptureAccess is unreliable (not updated during app lifetime)
-    /// AltTab workaround: use SCShareableContent on macOS 12.3+, CGDisplayStream on older
+    /// AltTab pattern: SCShareableContent on macOS 12.3+, CGDisplayStream on older
     static var hasScreenRecordingPermission: Bool {
         if #available(macOS 12.3, *) {
             return checkScreenRecordingWithSCShareableContent()
         } else if #available(macOS 10.15, *) {
-            return checkScreenRecordingWithDisplayStream()
+            return checkScreenRecordingOnAllDisplays()
         }
         return true
     }
 
     @available(macOS 12.3, *)
     private static func checkScreenRecordingWithSCShareableContent() -> Bool {
-        let semaphore = DispatchSemaphore(value: 0)
-        var result = false
-        SCShareableContent.getExcludingDesktopWindows(true, onScreenWindowsOnly: false) { content, error in
-            result = (error == nil && content != nil)
-            semaphore.signal()
+        return runWithTimeout { completion in
+            SCShareableContent.getExcludingDesktopWindows(true, onScreenWindowsOnly: false) { content, error in
+                completion(error == nil && content != nil)
+            }
         }
-        let timeout = semaphore.wait(timeout: .now() + 3)
-        if timeout == .timedOut {
-            logger.warning("SCShareableContent timed out after 3s")
-            return false
+    }
+
+    /// AltTab pattern: try all displays, not just main
+    @available(macOS 10.15, *)
+    private static func checkScreenRecordingOnAllDisplays() -> Bool {
+        let mainID = CGMainDisplayID()
+        if checkDisplayStream(mainID) { return true }
+        for screen in NSScreen.screens {
+            if let id = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID,
+               id != mainID, checkDisplayStream(id) {
+                return true
+            }
         }
-        logger.info("SCShareableContent check returned: \(result)")
-        return result
+        return false
     }
 
     @available(macOS 10.15, *)
-    private static func checkScreenRecordingWithDisplayStream() -> Bool {
-        let displayStream = CGDisplayStream(
-            dispatchQueueDisplay: CGMainDisplayID(),
-            outputWidth: 1,
-            outputHeight: 1,
-            pixelFormat: Int32(kCVPixelFormatType_32BGRA),
-            properties: nil,
-            queue: .global()
-        ) { _, _, _, _ in }
-        let granted = displayStream != nil
-        logger.info("CGDisplayStream check returned: \(granted)")
-        return granted
+    private static func checkDisplayStream(_ displayID: CGDirectDisplayID) -> Bool {
+        return runWithTimeout { completion in
+            let stream = CGDisplayStream(
+                dispatchQueueDisplay: displayID,
+                outputWidth: 1,
+                outputHeight: 1,
+                pixelFormat: Int32(kCVPixelFormatType_32BGRA),
+                properties: nil,
+                queue: .global()
+            ) { _, _, _, _ in }
+            completion(stream != nil)
+        }
+    }
+
+    /// AltTab pattern: run permission check on dedicated queue with 6s timeout
+    private static func runWithTimeout(_ block: @escaping (@escaping (Bool) -> Void) -> Void) -> Bool {
+        let semaphore = DispatchSemaphore(value: 0)
+        var result = false
+        permissionsQueue.addOperation {
+            block { value in
+                result = value
+                semaphore.signal()
+            }
+        }
+        let timeout = semaphore.wait(timeout: .now() + 6)
+        if timeout == .timedOut {
+            FlexLog.warning("Permission check timed out after 6s", category: .permissions)
+            return false
+        }
+        return result
     }
 
     /// Request accessibility permissions with alert
@@ -177,7 +202,7 @@ enum PermissionsManager {
     /// Reset the flag if permission is not granted (called on app start)
     static func resetScreenRecordingFlagIfNeeded() {
         if !hasScreenRecordingPermission {
-            logger.info("Permission not granted, resetting popup flag")
+            FlexLog.info("Screen Recording not granted, resetting popup flag", category: .permissions)
             hasShownScreenRecordingPopup = false
         }
     }
@@ -185,7 +210,7 @@ enum PermissionsManager {
     /// Request screen capture - triggers system to add app to Screen Recording list
     static func requestOrOpenScreenRecording() {
         if #available(macOS 10.15, *) {
-            logger.info("requestOrOpenScreenRecording - calling CGRequestScreenCaptureAccess")
+            FlexLog.info("Requesting Screen Recording access", category: .permissions)
             // This registers the app in the Screen Recording list
             CGRequestScreenCaptureAccess()
             // Also open System Settings so user can toggle it on
@@ -199,6 +224,44 @@ enum PermissionsManager {
         // Small delay to avoid alert overlap
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             ensureScreenRecordingPermission()
+        }
+    }
+
+    /// Reset TCC permissions if app version changed (new binary invalidates old permissions)
+    /// Should be called once at startup, before permission checks
+    static func resetPermissionsIfVersionChanged() {
+        let currentVersion = Bundle.main.object(
+            forInfoDictionaryKey: "CFBundleVersion"
+        ) as? String ?? "0"
+        let lastVersion = UserDefaults.standard.string(forKey: "lastPermissionVersion")
+
+        guard currentVersion != lastVersion else { return }
+
+        FlexLog.info(
+            "Version changed (\(lastVersion ?? "none") -> \(currentVersion)), resetting TCC",
+            category: .permissions
+        )
+
+        let bundleId = Bundle.main.bundleIdentifier ?? "com.flexytime.FlexytimeMacOS"
+        resetTCC(service: "Accessibility", bundleId: bundleId)
+        resetTCC(service: "ScreenCapture", bundleId: bundleId)
+
+        UserDefaults.standard.set(currentVersion, forKey: "lastPermissionVersion")
+    }
+
+    /// Run tccutil reset for a specific service and bundle ID
+    private static func resetTCC(service: String, bundleId: String) {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/tccutil")
+        task.arguments = ["reset", service, bundleId]
+        task.standardOutput = FileHandle.nullDevice
+        task.standardError = FileHandle.nullDevice
+        do {
+            try task.run()
+            task.waitUntilExit()
+            FlexLog.info("TCC reset \(service): exit=\(task.terminationStatus)", category: .permissions)
+        } catch {
+            FlexLog.warning("TCC reset \(service) failed: \(error.localizedDescription)", category: .permissions)
         }
     }
 }

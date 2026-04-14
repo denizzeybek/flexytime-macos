@@ -1,66 +1,21 @@
 import SwiftUI
 
 /// AltTab-style permissions onboarding view
+/// Pattern: Accessibility required, Screen Recording can be skipped
 struct PermissionsView: View {
     @StateObject private var permissionChecker = PermissionChecker()
     var onAllGranted: () -> Void
 
     var body: some View {
         VStack(spacing: 20) {
-            // Header
             headerSection
-
-            // Permission Cards
-            VStack(spacing: 12) {
-                PermissionCard(
-                    icon: "screen.recording",
-                    iconColor: .green,
-                    title: "Screen Recording",
-                    description: "This permission is needed to read window names",
-                    isGranted: permissionChecker.hasScreenRecording,
-                    buttonTitle: "Open Screen Recording Settings...",
-                    action: { PermissionsManager.requestOrOpenScreenRecording() }
-                )
-
-                PermissionCard(
-                    icon: "accessibility",
-                    iconColor: .blue,
-                    title: "Accessibility",
-                    description: "This permission is needed to read window titles",
-                    isGranted: permissionChecker.hasAccessibility,
-                    buttonTitle: "Open Accessibility Preferences...",
-                    action: { PermissionsManager.openAccessibilitySettings() }
-                )
-            }
-
-            // Continue button (only enabled when all permissions granted)
-            if permissionChecker.allPermissionsGranted {
-                Button("Continue") {
-                    onAllGranted()
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-            } else {
-                VStack(spacing: 4) {
-                    Text("Grant all permissions above to continue")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Text("Note: You may need to quit and reopen the app after granting permissions")
-                        .font(.caption2)
-                        .foregroundColor(.secondary.opacity(0.8))
-                }
-            }
+            permissionCards
+            footerSection
         }
         .padding(30)
-        .frame(width: 480, height: 380)
-        .onAppear {
-            // Reset the flag if permission not granted - so popup can show again
-            PermissionsManager.resetScreenRecordingFlagIfNeeded()
-            permissionChecker.startMonitoring()
-        }
-        .onDisappear {
-            permissionChecker.stopMonitoring()
-        }
+        .frame(width: 480, height: 400)
+        .onAppear { permissionChecker.startMonitoring() }
+        .onDisappear { permissionChecker.stopMonitoring() }
     }
 
     private var headerSection: some View {
@@ -74,38 +29,95 @@ struct PermissionsView: View {
                 .fontWeight(.semibold)
         }
     }
+
+    private var permissionCards: some View {
+        VStack(spacing: 12) {
+            PermissionCard(
+                icon: "accessibility",
+                title: "Accessibility",
+                description: "Required to read active window titles",
+                status: permissionChecker.accessibilityStatus,
+                buttonTitle: "Open Accessibility Preferences...",
+                action: { PermissionsManager.openAccessibilitySettings() }
+            )
+
+            PermissionCard(
+                icon: "screen.recording",
+                title: "Screen Recording",
+                description: "Required for complete window detection",
+                status: permissionChecker.screenRecordingStatus,
+                buttonTitle: "Open Screen Recording Settings...",
+                action: { PermissionsManager.requestOrOpenScreenRecording() },
+                skipAction: { permissionChecker.skipScreenRecording() }
+            )
+        }
+    }
+
+    private var footerSection: some View {
+        Group {
+            if permissionChecker.canProceed {
+                Button("Continue") { onAllGranted() }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+            } else {
+                Text("Grant the permissions above to continue")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        }
+    }
+}
+
+// MARK: - Permission Status
+
+enum PermissionStatus {
+    case granted
+    case notGranted
+    case skipped
+
+    var label: String {
+        switch self {
+        case .granted: return "Allowed"
+        case .notGranted: return "Not allowed"
+        case .skipped: return "Skipped"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .granted: return .green
+        case .notGranted: return .red
+        case .skipped: return .orange
+        }
+    }
+
+    var isResolved: Bool { self != .notGranted }
 }
 
 // MARK: - Permission Card
 
 struct PermissionCard: View {
     let icon: String
-    let iconColor: Color
     let title: String
     let description: String
-    let isGranted: Bool
+    let status: PermissionStatus
     let buttonTitle: String
     let action: () -> Void
+    var skipAction: (() -> Void)?
 
     var body: some View {
         HStack(spacing: 16) {
-            // Icon
             iconView
-
-            // Content
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    Text(title)
-                        .font(.headline)
+                    Text(title).font(.headline)
                     Spacer()
                     statusBadge
                 }
-
                 Text(description)
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .lineLimit(2)
-
                 Button(action: action) {
                     Text(buttonTitle)
                         .font(.caption)
@@ -113,70 +125,79 @@ struct PermissionCard: View {
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
-                .disabled(isGranted)
+                .disabled(status == .granted)
+
+                if let skipAction, status == .notGranted {
+                    skipCheckbox(skipAction)
+                }
             }
         }
         .padding(16)
-        .background(backgroundColor)
+        .background(status.color.opacity(0.1))
         .cornerRadius(10)
+    }
+
+    private func skipCheckbox(_ action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 4) {
+                Image(systemName: "forward.fill")
+                    .font(.caption2)
+                Text("Skip — window titles may be incomplete")
+                    .font(.caption2)
+            }
+            .foregroundColor(.secondary)
+        }
+        .buttonStyle(.plain)
     }
 
     private var iconView: some View {
         Image(systemName: iconSystemName)
             .font(.system(size: 24))
-            .foregroundColor(iconColor)
+            .foregroundColor(status.color)
             .frame(width: 40, height: 40)
     }
 
     private var iconSystemName: String {
         switch icon {
-        case "accessibility":
-            return "figure.stand"
-        case "screen.recording":
-            return "rectangle.inset.filled.on.rectangle"
-        default:
-            return "questionmark.circle"
+        case "accessibility": return "figure.stand"
+        case "screen.recording": return "rectangle.inset.filled.on.rectangle"
+        default: return "questionmark.circle"
         }
     }
 
     private var statusBadge: some View {
         HStack(spacing: 4) {
             Circle()
-                .fill(isGranted ? Color.green : Color.red)
+                .fill(status.color)
                 .frame(width: 8, height: 8)
-
-            Text(isGranted ? "Allowed" : "Not allowed")
+            Text(status.label)
                 .font(.caption)
                 .fontWeight(.medium)
-                .foregroundColor(isGranted ? .green : .red)
-        }
-    }
-
-    private var backgroundColor: Color {
-        if isGranted {
-            return Color.green.opacity(0.1)
-        } else {
-            return Color.red.opacity(0.1)
+                .foregroundColor(status.color)
         }
     }
 }
 
-// MARK: - Permission Checker (Observable)
+// MARK: - Permission Checker
 
 class PermissionChecker: ObservableObject {
-    @Published var hasAccessibility: Bool = false
-    @Published var hasScreenRecording: Bool = false
+    @Published var accessibilityStatus: PermissionStatus = .notGranted
+    @Published var screenRecordingStatus: PermissionStatus = .notGranted
 
     private var timer: Timer?
 
-    var allPermissionsGranted: Bool {
-        hasAccessibility && hasScreenRecording
+    /// Both permissions must be resolved (granted or skipped) to proceed
+    var canProceed: Bool {
+        accessibilityStatus.isResolved && screenRecordingStatus.isResolved
+    }
+
+    func skipScreenRecording() {
+        UserDefaults.standard.set(true, forKey: "screenRecordingSkipped")
+        screenRecordingStatus = .skipped
     }
 
     func startMonitoring() {
         checkPermissions()
-
-        // Poll every 2 seconds — screen recording check uses semaphore so run on background
         timer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
             self?.checkPermissions()
         }
@@ -191,9 +212,16 @@ class PermissionChecker: ObservableObject {
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             let accessibility = PermissionsManager.hasAccessibilityPermission
             let screenRec = PermissionsManager.hasScreenRecordingPermission
+            let skipped = UserDefaults.standard.bool(forKey: "screenRecordingSkipped")
             DispatchQueue.main.async {
-                self?.hasAccessibility = accessibility
-                self?.hasScreenRecording = screenRec
+                self?.accessibilityStatus = accessibility ? .granted : .notGranted
+                if screenRec {
+                    self?.screenRecordingStatus = .granted
+                } else if skipped {
+                    self?.screenRecordingStatus = .skipped
+                } else {
+                    self?.screenRecordingStatus = .notGranted
+                }
             }
         }
     }

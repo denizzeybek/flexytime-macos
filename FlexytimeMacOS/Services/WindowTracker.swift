@@ -1,6 +1,5 @@
 import Cocoa
 import CoreGraphics
-import os.log
 
 /// Tracks the currently active window and application
 final class WindowTracker {
@@ -21,16 +20,14 @@ final class WindowTracker {
 
     // MARK: - Properties
 
-    private let logger = Logger.services
     private var currentWindow: WindowInfo?
 
     // MARK: - Public Methods
 
     /// Gets the currently active window information
-    /// - Returns: WindowInfo if available, nil otherwise
     func getCurrentWindow() -> WindowInfo? {
         guard let frontApp = NSWorkspace.shared.frontmostApplication else {
-            logger.warning("No frontmost application found")
+            FlexLog.warning("No frontmost application found", category: .services)
             return nil
         }
 
@@ -47,7 +44,7 @@ final class WindowTracker {
         )
 
         if info != currentWindow {
-            logger.debug("Window changed: \(appName) - \(windowTitle)")
+            FlexLog.debug("Window: \(appName) - \(windowTitle)", category: .services)
             currentWindow = info
         }
 
@@ -60,26 +57,24 @@ final class WindowTracker {
         let pid = app.processIdentifier
         let appName = app.localizedName ?? "Unknown"
 
-        // Method 1: Try Accessibility API first (requires Accessibility permission)
+        // Method 1: Accessibility API (requires Accessibility permission)
         let (axTitle, axError) = getWindowTitleViaAccessibility(pid: pid)
         if let title = axTitle {
             return title
         }
 
-        // Method 2: Fallback to CGWindowList API (requires Screen Recording permission)
+        // Method 2: CGWindowList API (requires Screen Recording permission)
         let (cgTitle, cgError) = getWindowTitleViaCGWindowList(pid: pid)
         if let title = cgTitle {
             return title
         }
 
-        // Print debug info to understand the issue
-        print("⚠️ NO TITLE for \(appName): AX=\(axError), CG=\(cgError)")
+        FlexLog.warning("NO TITLE: \(appName) AX=\(axError) CG=\(cgError)", category: .permissions)
 
         return "No Window"
     }
 
     /// Get window title via Accessibility API
-    /// Returns (title, errorDescription)
     private func getWindowTitleViaAccessibility(pid: pid_t) -> (String?, String) {
         let appRef = AXUIElementCreateApplication(pid)
         var windowValue: CFTypeRef?
@@ -117,25 +112,20 @@ final class WindowTracker {
     }
 
     /// Get window title via CGWindowList API (fallback)
-    /// Returns (title, errorDescription)
     private func getWindowTitleViaCGWindowList(pid: pid_t) -> (String?, String) {
         let options = CGWindowListOption(arrayLiteral: .optionOnScreenOnly, .excludeDesktopElements)
         guard let windowList = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] else {
             return (nil, "list nil")
         }
 
-        var foundWindow = false
-        // Find windows belonging to this process
         for window in windowList {
             guard let windowPID = window[kCGWindowOwnerPID as String] as? pid_t,
                   windowPID == pid else {
                 continue
             }
 
-            foundWindow = true
             let layer = window[kCGWindowLayer as String] as? Int ?? -1
 
-            // Get window name (requires Screen Recording permission)
             if let windowName = window[kCGWindowName as String] as? String, !windowName.isEmpty {
                 return (windowName, "ok")
             } else {

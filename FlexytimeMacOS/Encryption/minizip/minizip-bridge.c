@@ -12,18 +12,27 @@ typedef struct {
     uint32_t keys[3];
 } zip_crypto_ctx;
 
+// PKWARE CRC32 update: raw table lookup WITHOUT the 0xFFFFFFFF pre/post XOR
+// zlib's crc32() does XOR 0xFFFFFFFF at start and end, but PKWARE encryption needs raw CRC
+static uint32_t pkware_crc32(uint32_t crc, uint8_t c) {
+    return (uint32_t)crc32(crc ^ 0xFFFFFFFF, &c, 1) ^ 0xFFFFFFFF;
+}
+
+static void update_keys(zip_crypto_ctx* ctx, uint8_t c) {
+    ctx->keys[0] = pkware_crc32(ctx->keys[0], c);
+    ctx->keys[1] = ctx->keys[1] + (ctx->keys[0] & 0xff);
+    ctx->keys[1] = ctx->keys[1] * 134775813 + 1;
+    uint8_t temp = (uint8_t)(ctx->keys[1] >> 24);
+    ctx->keys[2] = pkware_crc32(ctx->keys[2], temp);
+}
+
 static void init_keys(zip_crypto_ctx* ctx, const char* password) {
     ctx->keys[0] = 305419896;
     ctx->keys[1] = 591751049;
     ctx->keys[2] = 878082192;
 
     while (*password) {
-        uint8_t c = (uint8_t)*password++;
-        ctx->keys[0] = (uint32_t)crc32(ctx->keys[0], &c, 1);
-        ctx->keys[1] = ctx->keys[1] + (ctx->keys[0] & 0xff);
-        ctx->keys[1] = ctx->keys[1] * 134775813 + 1;
-        uint8_t temp = (uint8_t)(ctx->keys[1] >> 24);
-        ctx->keys[2] = (uint32_t)crc32(ctx->keys[2], &temp, 1);
+        update_keys(ctx, (uint8_t)*password++);
     }
 }
 
@@ -34,11 +43,7 @@ static uint8_t decrypt_byte(zip_crypto_ctx* ctx) {
 
 static uint8_t encrypt_byte(zip_crypto_ctx* ctx, uint8_t c) {
     uint8_t result = c ^ decrypt_byte(ctx);
-    ctx->keys[0] = (uint32_t)crc32(ctx->keys[0], &c, 1);
-    ctx->keys[1] = ctx->keys[1] + (ctx->keys[0] & 0xff);
-    ctx->keys[1] = ctx->keys[1] * 134775813 + 1;
-    uint8_t temp = (uint8_t)(ctx->keys[1] >> 24);
-    ctx->keys[2] = (uint32_t)crc32(ctx->keys[2], &temp, 1);
+    update_keys(ctx, c);
     return result;
 }
 

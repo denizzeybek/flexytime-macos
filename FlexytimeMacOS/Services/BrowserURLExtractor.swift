@@ -1,5 +1,4 @@
 import Cocoa
-import os.log
 
 /// Extracts active browser tab URL via AppleScript
 /// Supports: Safari, Google Chrome, Microsoft Edge
@@ -34,8 +33,6 @@ final class BrowserURLExtractor {
     }
 
     // MARK: - Properties
-
-    private let logger = Logger.services
 
     /// Cache: appName -> SupportedBrowser? (avoids repeated iteration)
     private var browserCache: [String: SupportedBrowser?] = [:]
@@ -76,7 +73,7 @@ final class BrowserURLExtractor {
         let result = script.executeAndReturnError(&error)
 
         if error != nil {
-            logger.debug("AppleScript error for URL extraction")
+            FlexLog.debug("AppleScript URL extraction failed", category: .services)
             return nil
         }
 

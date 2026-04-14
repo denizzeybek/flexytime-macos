@@ -1,13 +1,10 @@
 import Cocoa
-import os.log
 
 /// V1-compatible idle detection
 /// Uses kCGAnyInputEventType like V1's macos.py seconds_since_last_input()
 final class IdleDetector {
 
     // MARK: - Properties
-
-    private let logger = Logger.services
 
     /// Idle threshold in seconds (V1 default: 60 seconds)
     var idleThreshold: TimeInterval = 60
@@ -31,7 +28,7 @@ final class IdleDetector {
         let isIdle = idleTime >= idleThreshold
 
         if isIdle {
-            logger.debug("User is idle for \(Int(idleTime)) seconds")
+            FlexLog.debug("User idle for \(Int(idleTime))s", category: .services)
         }
 
         return isIdle

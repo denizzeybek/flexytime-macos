@@ -38,7 +38,7 @@
 	<key>ServiceHost</key>
 	<string>test.api.flexytime.com</string>
 	<key>ServiceVersion</key>
-	<string>2.0.0</string>
+	<string>2.0.1</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>
