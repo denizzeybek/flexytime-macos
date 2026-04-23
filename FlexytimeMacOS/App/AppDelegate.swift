@@ -11,10 +11,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var setupWindow: NSWindow?
     private var permissionsWindow: NSWindow?
 
-    /// Check if setup is needed (no ServiceKey configured)
+    /// Check if setup is needed
+    /// - First install: no ServiceKey in config
+    /// - DMG upgrade/reinstall: CFBundleVersion differs from last-setup version
     var needsSetup: Bool {
         let config = Configuration.shared
-        return config.serviceKey == nil || config.serviceKey?.isEmpty == true
+        if config.serviceKey == nil || config.serviceKey?.isEmpty == true {
+            return true
+        }
+        return isNewBuildSinceLastSetup
+    }
+
+    private var isNewBuildSinceLastSetup: Bool {
+        let current = Bundle.main.object(
+            forInfoDictionaryKey: "CFBundleVersion"
+        ) as? String ?? "0"
+        let last = UserDefaults.standard.string(forKey: "lastSetupVersion")
+        return current != last
     }
 
     /// Check if permissions onboarding is needed

@@ -3,10 +3,12 @@ import AppKit
 
 /// Setup view shown on first launch to collect ServiceKey
 struct SetupView: View {
-    @State private var serviceKey: String = ""
+    @State private var serviceKey: String = Configuration.shared.serviceKey ?? ""
     @State private var isValidating: Bool = false
     @State private var errorMessage: String?
     @State private var autoFilled: Bool = false
+
+    private let hadExistingKey: Bool = !(Configuration.shared.serviceKey ?? "").isEmpty
 
     var onComplete: () -> Void
 
@@ -21,7 +23,9 @@ struct SetupView: View {
                 .font(.title2)
                 .fontWeight(.semibold)
 
-            Text("Enter your company key to start using Flexytime.")
+            Text(hadExistingKey
+                 ? "Confirm your company key or paste a new one to continue."
+                 : "Enter your company key to start using Flexytime.")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -77,6 +81,7 @@ struct SetupView: View {
     }
 
     private func checkClipboardForServiceKey() {
+        guard serviceKey.isEmpty else { return }
         guard let clipboardText = NSPasteboard.general.string(forType: .string) else { return }
         let trimmed = clipboardText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, trimmed.count >= 10, trimmed.count <= 50 else { return }
@@ -102,8 +107,15 @@ struct SetupView: View {
             return
         }
 
-        // Save ServiceKey to config file
+        // Save ServiceKey to config file (overrides any existing value)
         Configuration.shared.serviceKey = trimmedKey
+
+        // Mark this build as "setup-complete" so we don't prompt again
+        // until the next DMG version is installed
+        let currentVersion = Bundle.main.object(
+            forInfoDictionaryKey: "CFBundleVersion"
+        ) as? String ?? "0"
+        UserDefaults.standard.set(currentVersion, forKey: "lastSetupVersion")
 
         Task {
             try? await Task.sleep(nanoseconds: 500_000_000)
