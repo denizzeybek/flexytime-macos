@@ -121,6 +121,8 @@ final class APIClient {
         encoder.dateEncodingStrategy = .iso8601
         request.httpBody = try encoder.encode(payload)
 
+        logCurl(url: url, body: request.httpBody ?? Data())
+
         let (data, response) = try await session.data(for: request)
 
         if let body = String(data: data, encoding: .utf8) {
@@ -135,6 +137,24 @@ final class APIClient {
         }
 
         return try JSONDecoder().decode(APIResponse.self, from: data)
+    }
+
+    /// Log the outgoing request as a curl command, with the Content field
+    /// redacted (base64 trace blob can be hundreds of KB)
+    private func logCurl(url: URL, body: Data) {
+        guard var bodyStr = String(data: body, encoding: .utf8) else { return }
+
+        // Replace "Content":"<base64>" with "Content":"" — handles any non-quote payload
+        if let range = bodyStr.range(of: #""Content"\s*:\s*"[^"]*""#, options: .regularExpression) {
+            bodyStr.replaceSubrange(range, with: "\"Content\":\"\"")
+        }
+
+        let escaped = bodyStr.replacingOccurrences(of: "'", with: "'\\''")
+        let curl = "curl -X POST '\(url.absoluteString)' "
+            + "-H 'Content-Type: application/json' "
+            + "-H 'Accept: text/plain' "
+            + "-d '\(escaped)'"
+        FlexLog.info("CURL: \(curl)", category: .network)
     }
 
     /// Decode backend GuidEncoder token to CompanyId GUID
