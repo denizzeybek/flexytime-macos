@@ -1,17 +1,33 @@
 import Cocoa
 
 /// Extracts active browser tab URL via AppleScript
-/// Supports: Safari, Google Chrome, Microsoft Edge
+///
+/// The legacy .NET backend used to hard-code a switch over Windows process
+/// names (`chrome`/`msedge`/`iexplore`/`opera`) — Arc, Safari, Firefox, Brave,
+/// Vivaldi all silently fell through and lost URL info. v2's backend now
+/// trusts whatever URL the agent sets in Properties.URL regardless of process
+/// name, so this extractor is the actual gate: extend the enum here to let a
+/// new browser's URLs flow through to classification.
+///
+/// All Chromium-based browsers (Arc, Brave, Vivaldi, Chrome, Edge) expose the
+/// same `URL of active tab of front window` AppleScript surface. Safari uses
+/// `URL of front document`. Firefox historically refused AppleScript URL
+/// access and is intentionally excluded.
 final class BrowserURLExtractor {
 
     // MARK: - Types
 
-    /// Browsers with AppleScript URL support
-    /// rawValue matches macOS localizedName (and backend ProcessName)
+    /// Browsers with AppleScript URL support.
+    /// `rawValue` matches `NSRunningApplication.localizedName` (which is what
+    /// `WindowTracker` reports as `appName`, and what the backend sees as
+    /// `view.ProcessName`).
     enum SupportedBrowser: String, CaseIterable {
         case safari = "Safari"
         case chrome = "Google Chrome"
         case edge = "Microsoft Edge"
+        case arc = "Arc"
+        case brave = "Brave Browser"
+        case vivaldi = "Vivaldi"
 
         /// AppleScript to get the active tab URL
         var urlScript: String {
@@ -26,6 +42,21 @@ final class BrowserURLExtractor {
             case .edge:
                 return """
                 tell application "Microsoft Edge" \
+                to return URL of active tab of front window
+                """
+            case .arc:
+                return """
+                tell application "Arc" \
+                to return URL of active tab of front window
+                """
+            case .brave:
+                return """
+                tell application "Brave Browser" \
+                to return URL of active tab of front window
+                """
+            case .vivaldi:
+                return """
+                tell application "Vivaldi" \
                 to return URL of active tab of front window
                 """
             }
