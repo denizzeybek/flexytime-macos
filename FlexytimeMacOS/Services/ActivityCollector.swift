@@ -86,7 +86,10 @@ final class ActivityCollector {
         }
     }
 
-    /// V1: activity_event() - creates new view on ProcessName or URL change
+    /// V1: activity_event() - creates new view on ProcessName or URL change,
+    /// PLUS emits a heartbeat view every `heartbeatInterval` while the
+    /// foreground app stays put and the user is not deep-idle. See
+    /// IDLE_GAP_HEARTBEAT_PLAN.md.
     private func activityEvent() {
         guard var window = windowTracker.getCurrentWindow() else {
             return
@@ -114,16 +117,33 @@ final class ActivityCollector {
             closeActiveView(at: now)
             currentURL = newURL
             createView(window: window)
+        } else if let active = activeView {
+            let inSession = now.timeIntervalSince(active.time)
+            guard inSession >= configuration.heartbeatInterval else { return }
+            let idleAge = idleDetector.secondsSinceLastInput()
+            guard idleAge < configuration.deepIdleThreshold else { return }
+            closeActiveView(at: now)
+            createView(
+                window: window,
+                extraProperties: [
+                    "Heartbeat": "1",
+                    "IdleAgeSec": String(Int(idleAge))
+                ]
+            )
         }
     }
 
-    /// V1: on_input_timed_event() - AFK check every 15s
+    /// V1: on_input_timed_event() — AFK check every 15s.
+    /// Updated to fire only past `deepIdleThreshold`. Between `idleThreshold`
+    /// and `deepIdleThreshold` the heartbeat path keeps the view alive (tagged
+    /// with `IdleAgeSec`); the backend's drop guard handles non-AlwaysOn apps.
+    /// See IDLE_GAP_HEARTBEAT_PLAN.md.
     private func onInputTimedEvent() {
         let seconds = idleDetector.secondsSinceLastInput()
-        guard seconds >= configuration.idleThreshold else { return }
+        guard seconds >= configuration.deepIdleThreshold else { return }
         guard activeView != nil else { return }
 
-        FlexLog.info("AFK detected (\(Int(seconds))s idle)", category: .services)
+        FlexLog.info("Deep AFK detected (\(Int(seconds))s idle)", category: .services)
         let lastInput = Date().addingTimeInterval(-seconds)
         closeActiveView(at: lastInput)
         currentURL = nil
@@ -164,14 +184,23 @@ final class ActivityCollector {
 
     // MARK: - Helper Methods
 
-    /// V1: create_view() — includes URL in Properties for browser apps
-    private func createView(window: WindowTracker.WindowInfo) {
+    /// V1: create_view() — includes URL in Properties for browser apps.
+    /// `extraProperties` lets the heartbeat path tag the new view with
+    /// `Heartbeat=1` + `IdleAgeSec=N` so the backend can recognize a
+    /// continuation-of-session view (vs a fresh user-input one).
+    private func createView(
+        window: WindowTracker.WindowInfo,
+        extraProperties: [String: String] = [:]
+    ) {
         let now = Date()
         let expireTime = now.addingTimeInterval(configuration.idleThreshold)
 
         var properties: [String: String] = [:]
         if let url = window.url {
             properties["URL"] = url
+        }
+        for (k, v) in extraProperties {
+            properties[k] = v
         }
 
         activeView = ViewEvent(

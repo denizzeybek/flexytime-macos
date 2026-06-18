@@ -57,6 +57,19 @@ final class Configuration {
     /// Calendar event interval in seconds (V1: 15 * 60 = 900)
     let calendarInterval: TimeInterval = 900
 
+    // MARK: - Idle Gap Heartbeat (see FlexytimeMacOS/Services/IDLE_GAP_HEARTBEAT_PLAN.md)
+
+    /// Heartbeat interval — when the foreground app stays put and the user is
+    /// not yet deep-idle, the active view is closed + reopened this often so the
+    /// backend never sees a multi-minute gap inside a single app session.
+    let heartbeatInterval: TimeInterval = 30
+
+    /// Deep-idle threshold — beyond this, we stop heartbeating and close the
+    /// active view at the last-input timestamp (the legacy V1 behavior, just at
+    /// a higher cap). Backend `interpolateGap` + Idle/Logout sentinels then
+    /// fill the real away-from-keyboard stretch.
+    let deepIdleThreshold: TimeInterval = 600
+
     // MARK: - Configurable Properties
 
     /// Server host (set by developer in Info.plist before build)
