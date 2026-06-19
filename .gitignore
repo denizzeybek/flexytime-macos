@@ -48,3 +48,8 @@ fastlane/test_output
 *.xcconfig
 Secrets.swift
 .claude/settings.local.json
+
+# Env files (never commit — agent doesn't use them today, but be ready)
+.env
+.env.*
+!.env.example
