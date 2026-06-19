@@ -86,6 +86,34 @@ final class ActivityCollector {
         }
     }
 
+    /// macOS system processes that occupy the foreground when the user is NOT
+    /// actually present at the machine (lock screen, screensaver, fast-user-
+    /// switch). Without this guard the agent would emit `loginwindow` views
+    /// for every minute the screen stayed locked, the backend would auto-
+    /// create a per-tenant Unclassified allocation for it, and the panel's
+    /// "Unclassified" bucket would balloon with off-keyboard time. Suppressing
+    /// the view here lets the existing BE Idle/Logout sentinel branch (which
+    /// kicks in when no view arrives for LOGOUT_THRESHOLD_SECONDS) take over
+    /// and credit the gap to None correctly.
+    private static let SUPPRESSED_BUNDLE_IDS: Set<String> = [
+        "com.apple.loginwindow",
+        "com.apple.ScreenSaver.Engine",
+        "com.apple.ScreenSaverEngine",
+    ]
+    private static let SUPPRESSED_APP_NAMES: Set<String> = [
+        "loginwindow",
+        "ScreenSaverEngine",
+        "Screensaver Engine",
+    ]
+
+    private func isSuppressedForeground(_ window: WindowTracker.WindowInfo) -> Bool {
+        if let bundleId = window.bundleIdentifier,
+           Self.SUPPRESSED_BUNDLE_IDS.contains(bundleId) {
+            return true
+        }
+        return Self.SUPPRESSED_APP_NAMES.contains(window.appName)
+    }
+
     /// V1: activity_event() - creates new view on ProcessName or URL change,
     /// PLUS emits a heartbeat view every `heartbeatInterval` while the
     /// foreground app stays put and the user is not deep-idle. See
@@ -96,6 +124,15 @@ final class ActivityCollector {
         }
 
         let now = Date()
+
+        if isSuppressedForeground(window) {
+            if activeView != nil {
+                FlexLog.info("Suppressed foreground (\(window.appName)) — closing view", category: .services)
+                closeActiveView(at: now)
+                currentURL = nil
+            }
+            return
+        }
 
         // Extract URL only for browser apps
         let newURL = urlExtractor.extractURL(appName: window.appName)
