@@ -48,7 +48,14 @@ final class ZipEncryption {
         }
     }
 
-    /// V1 compatible two-layer encryption process
+    /// V1 compatible two-layer encryption process.
+    /// Each invocation writes its temp files under a unique per-call subdir so
+    /// two flushes running concurrently (e.g. when the previous upload is still
+    /// stuck in HTTPS-retry while a fresh 60 s flush fires) cannot stomp on
+    /// each other's `usage.json` / `temp_inner.zip`. The previous shared-path
+    /// scheme produced ZIP_ERRNO (fopen failure) and dropped an entire batch.
+    /// The final `.trc` still lands under `cacheDir` with the legacy
+    /// `<ticks>.trc` name so the pending-file scanner picks it up unchanged.
     static func encryptUsage(
         _ usage: UsagePayload,
         config: Configuration,
@@ -60,8 +67,14 @@ final class ZipEncryption {
             withIntermediateDirectories: true
         )
 
-        // Step 1: Save JSON
-        let jsonPath = "\(cacheDir)/usage.json"
+        let scratchDir = "\(cacheDir)/.scratch-\(UUID().uuidString)"
+        try FileManager.default.createDirectory(
+            atPath: scratchDir,
+            withIntermediateDirectories: true
+        )
+        defer { try? FileManager.default.removeItem(atPath: scratchDir) }
+
+        let jsonPath = "\(scratchDir)/usage.json"
         let jsonData = try encodeUsage(usage)
         try jsonData.write(to: URL(fileURLWithPath: jsonPath))
 
@@ -69,14 +82,12 @@ final class ZipEncryption {
         let dataType = usage.dataType == .input ? "input" : "calendar"
         FlexLog.info("ZIP: \(jsonData.count)B JSON, \(viewCount) views, type=\(dataType)", category: .network)
 
-        // Log raw JSON payload for debugging
         if let jsonString = String(data: jsonData, encoding: .utf8) {
             FlexLog.info("JSON PAYLOAD:\n\(jsonString)", category: .network)
         }
 
-        // Step 2: Inner ZIP (password protected, entry = "usage.json")
         let jsonHash = sha256Hash(of: jsonData)
-        let internalZipPath = "\(cacheDir)/temp_inner.zip"
+        let internalZipPath = "\(scratchDir)/temp_inner.zip"
 
         try createPasswordZip(
             inputPath: jsonPath,
@@ -89,9 +100,6 @@ final class ZipEncryption {
         let innerSize = (try? Data(contentsOf: URL(fileURLWithPath: internalZipPath)))?.count ?? 0
         FlexLog.info("ZIP: inner=\(innerSize)B, hash=\(jsonHash.prefix(16))...", category: .network)
 
-        try? FileManager.default.removeItem(atPath: jsonPath)
-
-        // Step 3: Outer ZIP (password protected, entry = SHA256 hash)
         let ticks = ticksSinceEpoch()
         let trcFilename = "\(ticks).trc"
         let trcPath = "\(cacheDir)/\(trcFilename)"
@@ -103,8 +111,6 @@ final class ZipEncryption {
             password: config.externalPassword,
             compressionLevel: 5
         )
-
-        try? FileManager.default.removeItem(atPath: internalZipPath)
 
         let trcSize = (try? Data(contentsOf: URL(fileURLWithPath: trcPath)))?.count ?? 0
         FlexLog.info("ZIP: \(trcFilename) \(trcSize)B ready", category: .network)
@@ -143,16 +149,22 @@ final class ZipEncryption {
 
 extension ZipEncryption {
 
-    /// Get all pending .trc files in cache directory
+    /// Get all pending .trc files in cache directory.
+    /// Also opportunistically deletes any stale `.scratch-*` subdirs left
+    /// behind by an interrupted `encryptUsage` (process kill, disk-full, etc.).
     static func getPendingTraceFiles(userPath: String) -> [URL] {
         let cacheDir = Paths.userCacheDir(userPath: userPath)
         let fileManager = FileManager.default
 
-        guard let files = try? fileManager.contentsOfDirectory(atPath: cacheDir) else {
+        guard let entries = try? fileManager.contentsOfDirectory(atPath: cacheDir) else {
             return []
         }
 
-        return files
+        for entry in entries where entry.hasPrefix(".scratch-") {
+            try? fileManager.removeItem(atPath: "\(cacheDir)/\(entry)")
+        }
+
+        return entries
             .filter { $0.hasSuffix(".trc") }
             .map { URL(fileURLWithPath: "\(cacheDir)/\($0)") }
     }
